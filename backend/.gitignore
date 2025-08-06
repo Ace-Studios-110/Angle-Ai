@@ -1,0 +1,65 @@
+.vercel
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.venv/
+ENV/
+.env/
+env.bak/
+venv.bak/
+
+# Python egg metadata
+*.egg-info/
+*.egg
+dist/
+build/
+
+# VS Code settings
+.vscode/
+
+# macOS
+.DS_Store
+
+# Vercel local config (if any)
+.vercel
+
+# Test results
+htmlcov/
+.coverage
+.tox/
+.nox/
+.pytest_cache/
+
+# Environment files
+.env
+.env.*
+
+# SQLite DB or local DB
+*.db
+*.sqlite3
+
+# Log files
+*.log
+
+# pyright / mypy / typing tools
+.mypy_cache/
+.pyre/
+.typing/
+
+# Jupyter Notebook checkpoints (if used)
+.ipynb_checkpoints/
+
+# PyInstaller
+*.spec
+
+# Unit test cache
+__pypackages__/
+
+# Local project zip/package
+*.zip
+*.tar.gz
