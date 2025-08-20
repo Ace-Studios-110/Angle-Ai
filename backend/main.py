@@ -24,6 +24,15 @@ from exceptions import (
 
 app = FastAPI(title="Founderport Angel Assistant")
 
+# ✅ Root route for health check
+@app.get("/")
+async def root():
+    return {
+        "status": "ok",
+        "message": "Founderport Angel Assistant API is running",
+        "version": "1.0.0"
+    }
+
 # ✅ CORS Support
 app.add_middleware(
     CORSMiddleware,
