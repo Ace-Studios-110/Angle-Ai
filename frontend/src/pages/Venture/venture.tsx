@@ -97,7 +97,7 @@ export default function ChatPage() {
     formatted = formatted.replace(/\*(.*?)\*/g, '**$1**');
     
     // Format all bullet points and lists
-    formatted = formatted.replace(/^[-•]\s*(.*)/gm, (match, content) => {
+    formatted = formatted.replace(/^[-•]\s*(.*)/gm, (_, content) => {
       // Check for Yes/No/Positive responses
       if (content.toLowerCase().includes('yes') || 
           content.toLowerCase().includes('correct') ||
@@ -110,7 +110,7 @@ export default function ChatPage() {
     });
     
     // Also handle dash-based lists
-    formatted = formatted.replace(/^[–—-]\s*(.*)/gm, (match, content) => {
+    formatted = formatted.replace(/^[–—-]\s*(.*)/gm, (_, content) => {
       if (content.toLowerCase().includes('yes') || 
           content.toLowerCase().includes('correct') ||
           content.toLowerCase().includes('active') ||
