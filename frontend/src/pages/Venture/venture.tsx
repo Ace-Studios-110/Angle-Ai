@@ -9,6 +9,7 @@ import VentureLoader from '../../components/VentureLoader';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from 'remark-gfm';
 import RoadmapModal from '../../components/RoadmapModal';
+import QuestionNavigator from '../../components/QuestionNavigator';
 
 interface ConversationPair {
   question: string;
@@ -92,14 +93,41 @@ export default function ChatPage() {
     // Remove machine tags
     let formatted = text.replace(/\[\[Q:[A-Z_]+\.\d{2}]]\s*/g, '');
     
-    // Make questions bold - look for sentences ending with ?
-    formatted = formatted.replace(/([^.!?]*\?)/g, '**$1**');
+    // Convert asterisk-wrapped text to proper markdown bold
+    formatted = formatted.replace(/\*(.*?)\*/g, '**$1**');
     
-    // Make section headers bold (like "Guiding Questions:")
-    formatted = formatted.replace(/^([A-Z][a-zA-Z\s&]+:)$/gm, '**$1**');
+    // Format all bullet points and lists
+    formatted = formatted.replace(/^[-•]\s*(.*)/gm, (match, content) => {
+      // Check for Yes/No/Positive responses
+      if (content.toLowerCase().includes('yes') || 
+          content.toLowerCase().includes('correct') ||
+          content.toLowerCase().includes('active') ||
+          content.toLowerCase().includes('current')) {
+        return `✓ ${content}`;
+      }
+      // For all other items
+      return `• ${content}`;
+    });
     
-    // Make numbered lists in guiding questions bold
-    formatted = formatted.replace(/^(\d+\.\s)([^?\n]+\?)/gm, '$1**$2**');
+    // Also handle dash-based lists
+    formatted = formatted.replace(/^[–—-]\s*(.*)/gm, (match, content) => {
+      if (content.toLowerCase().includes('yes') || 
+          content.toLowerCase().includes('correct') ||
+          content.toLowerCase().includes('active') ||
+          content.toLowerCase().includes('current')) {
+        return `✓ ${content}`;
+      }
+      return `• ${content}`;
+    });
+    
+    // Format numbered lists while preserving numbers
+    formatted = formatted.replace(/^\d+\.\s*(.*)/gm, '$1. $1');
+    
+    // Format questions without asterisks
+    formatted = formatted.replace(/([^.!?]*\?)/g, '$1');
+    
+    // Format section headers without asterisks
+    formatted = formatted.replace(/^([A-Z][a-zA-Z\s&]+:)$/gm, '$1');
     
     return formatted.trim();
   };
@@ -128,7 +156,8 @@ export default function ChatPage() {
         const { result: { reply, progress } } = await fetchQuestion('', sessionId!);
         setCurrentQuestion(cleanQuestionText(reply));
         setProgress(progress);
-      } catch (e) {
+      } catch (error) {
+        console.error('Failed to fetch initial question:', error);
         toast.error('Failed to fetch initial question');
       } finally {
         setLoading(false);
@@ -154,7 +183,8 @@ export default function ChatPage() {
       const cleaned = cleanQuestionText(reply);
       setCurrentQuestion(cleaned);
       setProgress(progress);
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to fetch question:', error);
       toast.error('Something went wrong.');
       setHistory(prev => prev.slice(0, -1));
       setCurrentInput(input);
@@ -207,9 +237,42 @@ export default function ChatPage() {
   
   if (loading && currentQuestion === '') return <VentureLoader title='Loading your venture' />
   
+  // Transform history into questions array
+  const questions = history.map((pair, index) => ({
+    id: `${progress.phase}.${index + 1}`,
+    phase: progress.phase,
+    number: index + 1,
+    title: pair.question,
+    completed: true
+  }));
+
+  // Add current question
+  if (currentQuestion) {
+    questions.push({
+      id: `${progress.phase}.${questions.length + 1}`,
+      phase: progress.phase,
+      number: questions.length + 1,
+      title: currentQuestion,
+      completed: false
+    });
+  }
+
+  const handleQuestionSelect = async (questionId: string) => {
+    const numberStr = questionId.split('.')[1];
+    const number = parseInt(numberStr) - 1;
+    if (number < history.length) {
+      // Navigate to a previous question
+      const pair = history[number];
+      setCurrentQuestion(pair.question);
+      // TODO: Implement API call to actually navigate to this question
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 text-sm flex flex-col">
-      {/* Header Section */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 text-sm flex">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header Section */}
       <div className="flex-shrink-0 px-3 py-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-3">
@@ -224,7 +287,7 @@ export default function ChatPage() {
             </button>
 
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-sm">🧠</div>
+              <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-sm">🧭</div>
               <div>
                 <div className="text-base font-semibold text-gray-900">{progress.phase} Phase</div>
                 <div className="text-gray-500 text-xs"> Step {currentStep} of {total}</div>
@@ -296,7 +359,7 @@ export default function ChatPage() {
             <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-100">
               <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
                 <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">🧠</div>
+                  <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">🧭</div>
                   <div className="flex-1">
                     <div className="font-semibold text-gray-800 mb-1 text-sm">Angel</div>
                     <div className="text-gray-800 whitespace-pre-wrap prose prose-sm max-w-none">
@@ -327,7 +390,7 @@ export default function ChatPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-100">
             <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">🧠</div>
+                <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">🧭</div>
                 <div className="flex-1">
                   <div className="font-semibold text-gray-800 mb-1 text-sm">Angel</div>
                   <div className="text-gray-800 whitespace-pre-wrap">
@@ -421,6 +484,17 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+      </div>
+      </div>
+
+      {/* Right Navigation Panel */}
+      <div className="w-80 flex-shrink-0 border-l border-gray-200 h-screen sticky top-0 overflow-y-auto">
+        <QuestionNavigator
+          questions={questions}
+          currentPhase={progress.phase}
+          onQuestionSelect={handleQuestionSelect}
+          currentProgress={progress}
+        />
       </div>
     </div>
   );
