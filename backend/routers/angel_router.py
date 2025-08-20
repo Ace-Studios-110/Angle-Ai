@@ -93,6 +93,219 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
         }
     }
 
+def clean_reply_for_display(reply):
+    """Clean reply by removing progress indicators and tags"""
+    # Remove progress indicators
+    reply = re.sub(r'Question \d+ of \d+ \(\d+%\):', '', reply, flags=re.IGNORECASE)
+    
+    # Remove machine tags
+    reply = re.sub(r'\[\[Q:[A-Z_]+\.\d{2}]]\s*', '', reply)
+    
+    # Remove extra whitespace
+    reply = re.sub(r'\n\s*\n', '\n\n', reply)
+    
+    return reply.strip()
+
+def get_phase_display_name(phase):
+    """Get user-friendly phase names"""
+    phase_names = {
+        "KYC": "Getting to Know You",
+        "BUSINESS_PLAN": "Business Planning", 
+        "ROADMAP": "Creating Your Roadmap",
+        "IMPLEMENTATION": "Implementation & Launch"
+    }
+    return phase_names.get(phase, phase)
+
+async def update_session_context_from_response(session_id, response_content, tag, session):
+    """Extract and store key information from user responses"""
+    
+    # Extract key information based on KYC question
+    updates = {}
+    
+    if tag == "KYC.01":  # Name
+        updates["user_name"] = response_content.strip()
+    elif tag == "KYC.04":  # Work situation  
+        updates["employment_status"] = response_content.strip()
+    elif tag == "KYC.05":  # Business idea
+        updates["has_business_idea"] = "yes" in response_content.lower()
+        if updates["has_business_idea"]:
+            updates["business_idea_brief"] = response_content.strip()
+    elif tag == "KYC.08":  # Business type
+        updates["business_type"] = response_content.strip()
+    elif tag == "KYC.09":  # Motivation
+        updates["motivation"] = response_content.strip()
+    elif tag == "KYC.10":  # Location
+        updates["location"] = response_content.strip()
+    elif tag == "KYC.11":  # Industry
+        updates["industry"] = response_content.strip()
+    elif tag == "KYC.07":  # Skills comfort level
+        updates["skills_assessment"] = response_content.strip()
+        
+    # Update session with extracted information
+    if updates:
+        await patch_session(session_id, updates)
+        session.update(updates)
+
+@router.post("/sessions/{session_id}/command")
+async def handle_command(session_id: str, request: Request, payload: dict):
+    """Handle Accept/Modify commands for Draft and Scrapping responses"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    command = payload.get("command")  # "accept" or "modify"
+    draft_content = payload.get("draft_content")
+    modification_feedback = payload.get("feedback", "")
+
+    if command == "accept":
+        # Save the draft as the user's answer
+        await save_chat_message(session_id, user_id, "user", draft_content)
+        
+        # Move to next question
+        current_tag = session.get("asked_q")
+        if current_tag:
+            # Increment question number
+            phase, num = current_tag.split(".")
+            next_num = str(int(num) + 1).zfill(2)
+            next_tag = f"{phase}.{next_num}"
+            
+            session["asked_q"] = next_tag
+            session["answered_count"] += 1
+            
+            await patch_session(session_id, {
+                "asked_q": session["asked_q"],
+                "answered_count": session["answered_count"]
+            })
+        
+        return {
+            "success": True,
+            "message": "Answer accepted, moving to next question",
+            "action": "next_question"
+        }
+    
+    elif command == "modify":
+        # Process modification request
+        history = await fetch_chat_history(session_id)
+        
+        modify_prompt = f"The user wants to modify this response based on their feedback:\n\nOriginal: {draft_content}\n\nFeedback: {modification_feedback}\n\nPlease provide an improved version."
+        
+        session_context = {
+            "current_phase": session.get("current_phase", "KYC"),
+            "industry": session.get("industry"),
+            "location": session.get("location")
+        }
+        
+        improved_response = await get_angel_reply(
+            {"role": "user", "content": modify_prompt},
+            history,
+            session_context
+        )
+        
+        return {
+            "success": True,
+            "message": "Here's your modified response",
+            "result": {
+                "improved_response": improved_response,
+                "show_accept_modify": True
+            }
+        }
+
+@router.get("/sessions/{session_id}/artifacts/{artifact_type}")
+async def get_artifact(session_id: str, artifact_type: str, request: Request):
+    """Retrieve generated artifacts like business plans and roadmaps"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    try:
+        artifact = await fetch_artifact(session_id, artifact_type)
+        if not artifact:
+            return {"success": False, "message": "Artifact not found"}
+            
+        return {
+            "success": True,
+            "result": {
+                "content": artifact["content"],
+                "created_at": artifact["created_at"],
+                "type": artifact_type
+            }
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Error retrieving artifact: {str(e)}"}
+
+@router.post("/sessions/{session_id}/navigate")
+async def navigate_to_question(session_id: str, request: Request, payload: dict):
+    """Allow navigation back to previous questions for modifications"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    target_tag = payload.get("target_tag")  # e.g., "KYC.05"
+    
+    if not target_tag:
+        return {"success": False, "message": "Target question tag required"}
+    
+    # Validate target tag format
+    if not re.match(r'^(KYC|BUSINESS_PLAN|ROADMAP|IMPLEMENTATION)\.\d{2}$', target_tag):
+        return {"success": False, "message": "Invalid question tag format"}
+    
+    # Update session to target question
+    session["asked_q"] = target_tag
+    session["current_phase"] = target_tag.split(".")[0]
+    
+    await patch_session(session_id, {
+        "asked_q": session["asked_q"],
+        "current_phase": session["current_phase"]
+    })
+    
+    # Get the question text for the target tag
+    history = await fetch_chat_history(session_id)
+    
+    # Generate response for the target question
+    navigation_prompt = f"The user wants to revisit and potentially modify their answer to question {target_tag}. Please re-present this question and their previous answer if available."
+    
+    session_context = {
+        "current_phase": session["current_phase"],
+        "industry": session.get("industry"),
+        "location": session.get("location")
+    }
+    
+    question_response = await get_angel_reply(
+        {"role": "user", "content": navigation_prompt},
+        history,
+        session_context
+    )
+    
+    return {
+        "success": True,
+        "message": "Navigated to previous question",
+        "result": {
+            "question": clean_reply_for_display(question_response),
+            "current_tag": target_tag,
+            "phase": session["current_phase"]
+        }
+    }
+
+# Database helper functions for artifacts and enhanced session management
+
+async def save_artifact(session_id: str, artifact_type: str, content: str):
+    """Save generated artifacts to database"""
+    # Implementation depends on your database structure
+    # This is a placeholder for the database operation
+    pass
+
+async def fetch_artifact(session_id: str, artifact_type: str):
+    """Fetch artifact from database"""
+    # Implementation depends on your database structure
+    # This is a placeholder for the database operation
+    pass
+
+# Updated TOTALS_BY_PHASE to reflect correct question counts
+TOTALS_BY_PHASE = {
+    "KYC": 20,
+    "BUSINESS_PLAN": 46,  # Updated based on full questionnaire
+    "ROADMAP": 1,
+    "IMPLEMENTATION": 10  # Estimated based on typical implementation tasks
+}
+
 @router.post("/sessions/{session_id}/generate-plan")
 async def generate_business_plan(request: Request, session_id: str):
     history = await fetch_chat_history(session_id)
