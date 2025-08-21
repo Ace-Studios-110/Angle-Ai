@@ -93,41 +93,41 @@ export default function ChatPage() {
     // Remove machine tags
     let formatted = text.replace(/\[\[Q:[A-Z_]+\.\d{2}]]\s*/g, '');
     
-    // Convert asterisk-wrapped text to proper markdown bold
-    formatted = formatted.replace(/\*(.*?)\*/g, '**$1**');
+    // Clean up multiple markdown symbols
+    // Convert multiple hashtags to proper header level
+    formatted = formatted.replace(/^#{3,}/gm, '###');
     
-    // Format all bullet points and lists
-    formatted = formatted.replace(/^[-•]\s*(.*)/gm, (_, content) => {
-      // Check for Yes/No/Positive responses
-      if (content.toLowerCase().includes('yes') || 
-          content.toLowerCase().includes('correct') ||
-          content.toLowerCase().includes('active') ||
-          content.toLowerCase().includes('current')) {
-        return `✓ ${content}`;
-      }
-      // For all other items
-      return `• ${content}`;
+    // Clean up multiple asterisks and handle bold text properly
+    formatted = formatted.replace(/\*{2,}/g, '**'); // Normalize multiple asterisks to pairs
+    formatted = formatted.replace(/\*([^*]+)\*/g, '**$1**'); // Single asterisks to bold
+    
+    // Clean up multiple dashes and format lists
+    formatted = formatted.replace(/^[-]{2,}/gm, '-'); // Normalize multiple dashes
+    formatted = formatted.replace(/^[-•]\s*(.*)/gm, '• $1'); // Format as bullet points
+    
+    // Handle numbered lists properly
+    formatted = formatted.replace(/^\d+\.\s+(.*)/gm, (match) => {
+      return match; // Keep original numbered lists intact
     });
     
-    // Also handle dash-based lists
-    formatted = formatted.replace(/^[–—-]\s*(.*)/gm, (_, content) => {
-      if (content.toLowerCase().includes('yes') || 
-          content.toLowerCase().includes('correct') ||
-          content.toLowerCase().includes('active') ||
-          content.toLowerCase().includes('current')) {
-        return `✓ ${content}`;
-      }
-      return `• ${content}`;
+    // Format section headers with proper styling
+    formatted = formatted.replace(/^([A-Z][a-zA-Z\s&]+):$/gm, '**$1:**');
+    
+    // Clean up and normalize headers
+    formatted = formatted.replace(/^(#{1,3})\s*(.*?)\s*$/gm, (_, hashes, content) => {
+      const level = Math.min(hashes.length, 3); // Limit to 3 levels
+      return `${'#'.repeat(level)} ${content}`;
     });
     
-    // Format numbered lists while preserving numbers
-    formatted = formatted.replace(/^\d+\.\s*(.*)/gm, '$1. $1');
+    // Add proper spacing after headers
+    formatted = formatted.replace(/\n(#{1,3}.*)\n/g, '\n$1\n\n');
     
-    // Format questions without asterisks
-    formatted = formatted.replace(/([^.!?]*\?)/g, '$1');
+    // Add proper spacing for lists
+    formatted = formatted.replace(/\n([-•].*)\n/g, '\n$1\n');
     
-    // Format section headers without asterisks
-    formatted = formatted.replace(/^([A-Z][a-zA-Z\s&]+:)$/gm, '$1');
+    // Clean up excess whitespace and newlines
+    formatted = formatted.replace(/\n{3,}/g, '\n\n'); // Replace multiple newlines with double newlines
+    formatted = formatted.replace(/\s+$/gm, ''); // Remove trailing spaces
     
     return formatted.trim();
   };
