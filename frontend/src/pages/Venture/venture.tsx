@@ -103,9 +103,9 @@ export default function ChatPage() {
     plan: "",
   });
 
-  const cleanQuestionText = (text: string): string => {
-    return text.replace(/\[\[Q:[A-Z_]+\.\d{2}]]\s*/g, "").trim();
-  };
+  // const cleanQuestionText = (text: string): string => {
+  //   return text.replace(/\[\[Q:[A-Z_]+\.\d{2}]]\s*/g, "").trim();
+  // };
 
   const formatAngelMessage = (text: string): string => {
     // Remove machine tags
