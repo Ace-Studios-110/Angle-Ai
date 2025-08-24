@@ -1,3 +1,2 @@
-# api/index.py
-# Just import your FastAPI instance; Vercel will serve it.
-from backend.main import app  # <- this is the FastAPI() you showed
+# Import your FastAPI app from backend/main.py (root is now "backend")
+from main import app

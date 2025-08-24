@@ -1,11 +1,10 @@
 {
   "functions": {
-    "backend/api/index.py": {
+    "api/index.py": {
       "runtime": "python3.11"
     }
   },
   "routes": [
-    { "src": "/(.*)", "dest": "backend/api/index.py" }
+    { "src": "/(.*)", "dest": "api/index.py" }
   ]
 }
-  
