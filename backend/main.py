@@ -36,10 +36,10 @@ async def root():
 # ✅ CORS Support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace with frontend domain in production
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],  # or list explicit headers you send (Authorization, Content-Type, etc.)
 )
 
 # ✅ Routers
