@@ -84,7 +84,7 @@ async def root():
         "message": "Founderport Angel Assistant API is running",
         "version": "1.0.0"
     }
-# i
+
 # ✅ Debug endpoint to check CORS
 @app.get("/debug")
 async def debug(request: Request):
