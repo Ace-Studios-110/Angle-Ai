@@ -36,11 +36,15 @@ async def root():
 # ✅ CORS Support
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Replace with frontend domain in production
-    allow_credentials=True,
+    allow_origins=[
+        "https://angle-ai.vercel.app",
+        "http://localhost:3000",   # if you develop locally
+    ],
+    allow_credentials=True,        # only if you use cookies; otherwise set False
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ✅ Routers
 app.include_router(auth_router, prefix="/auth")
