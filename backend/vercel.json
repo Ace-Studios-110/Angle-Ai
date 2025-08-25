@@ -1,20 +1,13 @@
 {
-    "version": 2,
-    "builds": [
-        {
-            "src": "main.py",
-            "use": "@vercel/python"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/(.*)",
-            "dest": "main.py"
-        }
-    ],
-    "functions": {
-        "main.py": {
-            "includeFiles": "**"
-        }
+  "version": 2,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "**"
     }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/api" },
+    { "source": "/auth(/.*)?", "destination": "/api/auth$1" },
+    { "source": "/angel(/.*)?", "destination": "/api/angel$1" }
+  ]
 }
