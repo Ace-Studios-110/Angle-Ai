@@ -24,7 +24,7 @@ from ..exceptions import (
 
 app = FastAPI(title="Founderport Angel Assistant")
 
-# ✅ Root route for health check
+# ✅ Root route for health check minor
 @app.get("/")
 async def root():
     return {
