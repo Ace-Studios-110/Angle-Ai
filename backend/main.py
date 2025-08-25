@@ -53,7 +53,7 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 
 # Add the custom CORS middleware FIRST (before any other middleware)
 app.add_middleware(CustomCORSMiddleware)
-
+# Minor Fixes
 # ✅ FastAPI's built-in CORS middleware (backup)
 app.add_middleware(
     CORSMiddleware,
