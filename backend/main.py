@@ -30,7 +30,7 @@ origins = [
     "http://localhost:8080",
 ]
 
-# ✅ CORS Support
+# ✅ CORS Support for all routes
 # Enhanced CORS middleware
 app.add_middleware(
     CORSMiddleware,
