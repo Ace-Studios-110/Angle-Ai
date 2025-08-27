@@ -1,5 +1,5 @@
 # api/index.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -17,6 +17,25 @@ from exceptions import (
 )
 
 app = FastAPI(title="Founderport Angel Assistant")
+# ✅ CORS Support
+# Enhanced CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],  # or list explicit headers you send (Authorization, Content-Type, etc.)
+)
+# Manual OPTIONS handler for problematic preflight requests
+@app.options("/{full_path:path}")
+async def options_handler(request: Request, full_path: str):
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    return response
+
 # Fix Build
 @app.get("/")
 async def root():
@@ -26,13 +45,6 @@ async def root():
         "version": "1.0.0"
     }
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],  # or list explicit headers you send (Authorization, Content-Type, etc.)
-)
 
 app.include_router(auth_router, prefix="/auth")
 app.include_router(angel_router, prefix="/angel")
