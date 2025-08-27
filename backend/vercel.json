@@ -6,18 +6,6 @@
     }
   },
   "rewrites": [
-    { "source": "/", "destination": "/api" },
-    { "source": "/auth/(.*)", "destination": "/api/auth/$1" },
-    { "source": "/angel/(.*)", "destination": "/api/angel/$1" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
-      ]
-    }
+    { "source": "/(.*)", "destination": "/api/index.py" }
   ]
 }
