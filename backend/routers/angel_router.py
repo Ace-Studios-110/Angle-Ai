@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from schemas.angel_schemas import ChatRequestSchema, CreateSessionSchema
 from services.session_service import create_session, list_sessions, get_session, patch_session
 from services.chat_service import fetch_chat_history, save_chat_message, fetch_phase_chat_history
@@ -6,12 +6,19 @@ from services.generate_plan_service import generate_full_business_plan, generate
 from services.angel_service import get_angel_reply
 from utils.progress import parse_tag, TOTALS_BY_PHASE, smart_trim_history
 from middlewares.auth import verify_auth_token
-from fastapi import Depends
-import re
+from fastapi.middleware.cors import CORSMiddleware
 
 router = APIRouter(
     tags=["Angel"],
     dependencies=[Depends(verify_auth_token)]
+)
+
+router.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 @router.post("/sessions")

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from schemas.auth_schemas import SignUpSchema, SignInSchema, ResetPasswordSchema, RefreshTokenSchema
 from services.auth_service import (
     create_user,
@@ -9,6 +10,14 @@ from services.auth_service import (
 )
 
 auth_router = APIRouter()
+
+auth_router.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 @auth_router.post("/signup")
 async def signup(user: SignUpSchema):
