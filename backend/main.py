@@ -23,12 +23,18 @@ from exceptions import (
 )
 
 app = FastAPI(title="Founderport Angel Assistant")
+origins = [
+    "https://angle-ai.vercel.app",
+    "http://localhost:3000",
+    "http://localhost",
+    "http://localhost:8080",
+]
 
 # ✅ CORS Support
 # Enhanced CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],  # or list explicit headers you send (Authorization, Content-Type, etc.)
