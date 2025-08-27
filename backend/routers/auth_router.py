@@ -11,14 +11,6 @@ from services.auth_service import (
 
 auth_router = APIRouter()
 
-auth_router.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
-
 @auth_router.post("/signup")
 async def signup(user: SignUpSchema):
     created_user = await create_user(user.email, user.password)

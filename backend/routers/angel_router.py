@@ -13,14 +13,6 @@ router = APIRouter(
     dependencies=[Depends(verify_auth_token)]
 )
 
-router.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
-
 @router.post("/sessions")
 async def post_session(request: Request, payload: CreateSessionSchema):
     user_id = request.state.user["id"]
