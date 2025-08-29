@@ -137,7 +137,7 @@ export default function ChatPage() {
 
     return formatted.trim();
   };
-
+// Update 
   // Auto-focus input after response is sent
   useEffect(() => {
     if (!loading && inputRef.current) {

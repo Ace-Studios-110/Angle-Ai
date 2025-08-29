@@ -4,7 +4,7 @@ from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUES
 from pydantic import ValidationError
 from gotrue.errors import AuthApiError  
 import traceback
-
+# update 
 async def global_exception_handler(request: Request, exc: Exception):
     print("⚠️ Global Exception Caught")
     print(f"🔗 Path: {request.url.path}")
