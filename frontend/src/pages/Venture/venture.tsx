@@ -84,6 +84,7 @@ export default function ChatPage() {
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [currentInput, setCurrentInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
   const [progress, setProgress] = useState<ProgressState>({
     phase: "KYC",
     answered: 0,
@@ -297,11 +298,11 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 text-sm flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 text-sm flex flex-col lg:flex-row">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header Section */}
-        <div className="flex-shrink-0 px-3 py-4">
+        <div className="flex-shrink-0 px-3 py-4 lg:px-3 lg:py-4">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-3">
               <button
@@ -321,14 +322,15 @@ export default function ChatPage() {
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-                Back to Ventures
+                <span className="hidden sm:inline">Back to Ventures</span>
+                <span className="sm:hidden">Back</span>
               </button>
 
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-sm">
                   🧭
                 </div>
-                <div>
+                <div className="hidden sm:block">
                   <div className="text-base font-semibold text-gray-900">
                     {progress.phase} Phase
                   </div>
@@ -337,19 +339,47 @@ export default function ChatPage() {
                     Step {currentStep} of {total}
                   </div>
                 </div>
+                <div className="sm:hidden">
+                  <div className="text-sm font-semibold text-gray-900">
+                    {progress.phase}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    {currentStep}/{total}
+                  </div>
+                </div>
               </div>
+
+              {/* Mobile Navigation Toggle */}
+              <button
+                onClick={() => setShowMobileNav(!showMobileNav)}
+                className="lg:hidden p-2 rounded-lg bg-white/80 backdrop-blur-sm border border-gray-200 hover:bg-white transition-colors"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
             </div>
 
             <ProgressCircle progress={percent} phase={progress.phase} />
 
             {showBusinessPlanButton && (
               <div className="mt-6 flex justify-center">
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <button
                     onClick={handleViewPlan}
-                    className="group relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    className="group relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-600 hover:via-teal-600 hover:to-cyan-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
                       <span className="text-base">📊</span>
                       <span>Business Plan</span>
                     </div>
@@ -358,9 +388,9 @@ export default function ChatPage() {
 
                   <button
                     onClick={handleViewRoadmap}
-                    className="group relative bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                    className="group relative bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
                       <span className="text-base">🗺️</span>
                       <span>Roadmap Plan</span>
                     </div>
@@ -396,8 +426,11 @@ export default function ChatPage() {
         {/* Scrollable Chat Area */}
         <div
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto px-3 pb-4"
-          style={{ maxHeight: "calc(100vh - 320px)" }}
+          className="flex-1 overflow-y-auto px-3 pb-4 lg:pb-4"
+          style={{ 
+            maxHeight: "calc(100vh - 320px)",
+            minHeight: "calc(100vh - 320px)"
+          }}
         >
           <div className="max-w-4xl mx-auto space-y-4">
             {/* Chat History */}
@@ -406,31 +439,31 @@ export default function ChatPage() {
                 key={index}
                 className="bg-white rounded-lg shadow-sm border border-gray-100"
               >
-                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">
+                <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs flex-shrink-0">
                       🧭
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-800 mb-1 text-sm">
                         Angel
                       </div>
-                      <div className="text-gray-800 whitespace-pre-wrap">
+                      <div className="text-gray-800 whitespace-pre-wrap text-sm">
                         {formatAngelMessage(pair.question)}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 bg-gray-50">
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-xs">
+                <div className="p-3 sm:p-4 bg-gray-50">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-xs flex-shrink-0">
                       👤
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="font-semibold text-gray-800 mb-1 text-sm">
                         You
                       </div>
-                      <div className="text-gray-700 whitespace-pre-wrap">
+                      <div className="text-gray-700 whitespace-pre-wrap text-sm">
                         {pair.answer}
                       </div>
                     </div>
@@ -441,16 +474,16 @@ export default function ChatPage() {
 
             {/* Current Question */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-              <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs">
+              <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-blue-50">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="w-6 h-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-xs flex-shrink-0">
                     🧭
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-800 mb-1 text-sm">
                       Angel
                     </div>
-                    <div className="text-gray-800 whitespace-pre-wrap">
+                    <div className="text-gray-800 whitespace-pre-wrap text-sm">
                       {loading ? (
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-teal-500"></div>
@@ -473,14 +506,14 @@ export default function ChatPage() {
         <div className="flex-shrink-0 bg-gradient-to-br from-slate-50 to-teal-50 px-3 py-3">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-3">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center text-xs flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-6 h-6 sm:w-7 sm:h-7 bg-gray-300 rounded-full flex items-center justify-center text-xs flex-shrink-0">
                   👤
                 </div>
                 <div className="flex-1 min-w-0">
                   <textarea
                     ref={inputRef}
-                    className="w-full rounded-lg p-2.5 resize-none text-sm bg-gray-50 text-gray-900 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white transition-all duration-200 placeholder-gray-500"
+                    className="w-full rounded-lg p-2 sm:p-2.5 resize-none text-sm bg-gray-50 text-gray-900 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white transition-all duration-200 placeholder-gray-500"
                     rows={1}
                     value={currentInput}
                     onChange={(e) => setCurrentInput(e.target.value)}
@@ -502,7 +535,7 @@ export default function ChatPage() {
                   />
                 </div>
                 <button
-                  className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white p-2.5 rounded-lg font-medium text-sm disabled:opacity-50 shadow-md transition-all duration-200 flex-shrink-0"
+                  className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white p-2 sm:p-2.5 rounded-lg font-medium text-sm disabled:opacity-50 shadow-md transition-all duration-200 flex-shrink-0"
                   onClick={() => handleNext()}
                   disabled={loading || !currentInput.trim()}
                 >
@@ -528,12 +561,12 @@ export default function ChatPage() {
 
               {/* Quick Actions Row */}
               {progress.phase !== "KYC" && (
-                <div className="flex items-center justify-between mt-2.5">
-                  <div className="flex gap-1.5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2.5 gap-2 sm:gap-0">
+                  <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
                     {["Support", "Draft", "Scrapping"].map((cmd) => (
                       <button
                         key={cmd}
-                        className="bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-700 px-2.5 py-1 rounded-md text-xs font-medium disabled:opacity-50 transition-colors duration-200"
+                        className="bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-700 px-2.5 py-1 rounded-md text-xs font-medium disabled:opacity-50 transition-colors duration-200 flex-1 sm:flex-none text-center"
                         onClick={() => handleNext(cmd)}
                         disabled={loading}
                       >
@@ -541,7 +574,7 @@ export default function ChatPage() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-gray-400 text-xs">
+                  <p className="text-gray-400 text-xs text-center sm:text-right w-full sm:w-auto">
                     💡 Quick actions or type detailed response
                   </p>
                 </div>
@@ -559,8 +592,8 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Right Navigation Panel */}
-      <div className="w-80 flex-shrink-0 border-l border-gray-200 h-screen sticky top-0 overflow-y-auto">
+      {/* Right Navigation Panel - Desktop */}
+      <div className="hidden lg:block w-80 flex-shrink-0 border-l border-gray-200 h-screen sticky top-0 overflow-y-auto">
         <QuestionNavigator
           questions={questions}
           currentPhase={progress.phase}
@@ -568,6 +601,135 @@ export default function ChatPage() {
           currentProgress={progress}
         />
       </div>
+
+      {/* Mobile Navigation Panel - Overlay */}
+      {showMobileNav && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowMobileNav(false)}
+          />
+          
+          {/* Navigation Panel */}
+          <div className="absolute right-0 top-0 h-full w-full max-w-sm bg-white shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-blue-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded flex items-center justify-center text-white text-sm">
+                  🧭
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Questions</h3>
+              </div>
+              <button
+                onClick={() => setShowMobileNav(false)}
+                className="p-2 rounded-lg hover:bg-white/80 transition-colors"
+              >
+                <svg
+                  className="w-6 h-6 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="h-full flex flex-col">
+              {/* Progress Summary */}
+              <div className="p-4 border-b border-gray-100 bg-white">
+                <div className="text-center">
+                  <div className="text-sm font-medium text-gray-600 mb-1">Current Progress</div>
+                  <div className="text-lg font-bold text-gray-900">{progress.phase}</div>
+                  <div className="text-sm text-gray-500">Step {currentStep} of {total}</div>
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-teal-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${percent}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Questions List - Scrollable Area */}
+              <div className="flex-1 overflow-y-auto px-4 py-2">
+                <div className="space-y-3">
+                  {questions.map((question) => (
+                    <div
+                      key={question.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                        question.completed
+                          ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                          : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                      }`}
+                      onClick={() => {
+                        handleQuestionSelect(question.id);
+                        setShowMobileNav(false);
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs text-white flex-shrink-0 ${
+                          question.completed
+                            ? 'bg-green-500'
+                            : 'bg-blue-500'
+                        }`}>
+                          {question.completed ? '✓' : '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs text-gray-500 mb-1">
+                            {question.phase} • Q{question.number}
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 line-clamp-3">
+                            {question.title}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Bottom Actions */}
+              <div className="p-4 border-t border-gray-100 bg-gray-50 space-y-3">
+                {showBusinessPlanButton && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        handleViewPlan();
+                        setShowMobileNav(false);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 py-2.5 rounded-lg text-sm font-medium hover:from-emerald-600 hover:to-teal-600 transition-colors"
+                    >
+                      📊 Plan
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleViewRoadmap();
+                        setShowMobileNav(false);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-2.5 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-indigo-600 transition-colors"
+                    >
+                      🗺️ Roadmap
+                    </button>
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowMobileNav(false)}
+                  className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
