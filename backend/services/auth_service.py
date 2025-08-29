@@ -1,4 +1,7 @@
 from db.supabase import supabase
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def create_user(email: str, password: str):
     response = supabase.auth.sign_up({"email": email, "password": password})
@@ -17,7 +20,14 @@ async def send_reset_password_email(email: str):
     return {"email": email}
 
 def refresh_session(refresh_token: str):
-    response = supabase.auth.refresh_session(refresh_token)
-    if response.session is None:
-        raise Exception("Token refresh failed")
-    return response.session
+    try:
+        logger.info("Attempting to refresh session with token")
+        response = supabase.auth.refresh_session(refresh_token)
+        if response.session is None:
+            logger.error("Token refresh failed - no session returned")
+            raise Exception("Token refresh failed")
+        logger.info("Session refreshed successfully")
+        return response.session
+    except Exception as e:
+        logger.error(f"Error refreshing session: {str(e)}")
+        raise Exception(f"Token refresh failed: {str(e)}")
