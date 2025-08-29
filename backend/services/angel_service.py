@@ -5,7 +5,7 @@ import re
 from utils.constant import ANGEL_SYSTEM_PROMPT
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+# Update
 TAG_PROMPT = "Reminder: Before asking the next question, include a machine-readable tag in this format:\n[[Q:<PHASE>.<NN>]] — e.g. [[Q:BUSINESS_PLAN.03]] What is your pricing model?"
 
 WEB_SEARCH_PROMPT = """You have access to web search capabilities. Use web search when:

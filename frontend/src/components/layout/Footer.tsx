@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FaTwitter, FaLinkedin, FaGithub, FaInstagram } from 'react-icons/fa';
 import LOGO from '../../assets/images/home/Founderport_Logo_Horizontal_Mariner_Main.svg';
-
+// Update
 const socialLinks = [
   { icon: FaTwitter, href: 'https://twitter.com/founderport', label: 'Twitter' },
   { icon: FaLinkedin, href: 'https://linkedin.com/company/founderport', label: 'LinkedIn' },
