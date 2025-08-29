@@ -1,7 +1,7 @@
-
+# import logging
 # logging.basicConfig(level=logging.DEBUG)
 import os
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -23,31 +23,6 @@ from exceptions import (
 )
 
 app = FastAPI(title="Founderport Angel Assistant")
-origins = [
-    "https://angle-ai.vercel.app",
-    "http://localhost:3000",
-    "http://localhost",
-    "http://localhost:8080",
-]
-
-# ✅ CORS Support for all routes
-# Enhanced CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],  # or list explicit headers you send (Authorization, Content-Type, etc.)
-)
-# Manual OPTIONS handler for problematic preflight requests
-@app.options("/{full_path:path}")
-async def options_handler(request: Request, full_path: str):
-    response = Response()
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Max-Age"] = "86400"
-    return response
 
 # ✅ Root route for health check
 @app.get("/")
@@ -57,6 +32,15 @@ async def root():
         "message": "Founderport Angel Assistant API is running",
         "version": "1.0.0"
     }
+
+# ✅ CORS Support
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace with frontend domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ✅ Routers
 app.include_router(auth_router, prefix="/auth")

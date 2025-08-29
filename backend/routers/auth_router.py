@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from fastapi import HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from schemas.auth_schemas import SignUpSchema, SignInSchema, ResetPasswordSchema, RefreshTokenSchema
 from services.auth_service import (
     create_user,
