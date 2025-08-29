@@ -100,16 +100,21 @@ httpClient.interceptors.response.use(
   response => response,
   async error => {
     console.log('--- Axios Error:', error);
+    console.log('--- Error Response:', error?.response?.data);
+    console.log('--- Error Status:', error?.response?.status);
+    
     const originalRequest = error.config;
 
     const is401 = error?.response?.status === 401;
     const isRetry = originalRequest && originalRequest._retry;
 
     if (is401 && !isRetry) {
+      console.log('--- Attempting token refresh...');
       originalRequest._retry = true;
 
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
+        console.log('--- No refresh token found, redirecting to login');
         toast.error(ErrorMessages[ErrorCodes.UNAUTHORIZED]);
         clearSession();
         window.location.href = '/login';
@@ -117,6 +122,7 @@ httpClient.interceptors.response.use(
       }
 
       if (isRefreshing) {
+        console.log('--- Token refresh already in progress, queuing request');
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(token => {
@@ -128,6 +134,7 @@ httpClient.interceptors.response.use(
       }
 
       isRefreshing = true;
+      console.log('--- Starting token refresh...');
 
       try {
         const res = await axios.post<IRefreshTokenResponse>(`${BASE}/auth/refresh-token`, {
@@ -147,9 +154,11 @@ httpClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
         }
 
-        window.location.reload();
+        console.log('--- Token refresh successful, retrying original request');
+        // Remove the window.location.reload() call to prevent infinite loops
         return httpClient(originalRequest);
       } catch (refreshErr) {
+        console.log('--- Token refresh failed:', refreshErr);
         processQueue(refreshErr, null);
         toast.error(ErrorMessages[ErrorCodes.UNAUTHORIZED]);
         clearSession();
