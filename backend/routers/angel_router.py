@@ -48,20 +48,32 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
     # Save assistant reply
     await save_chat_message(session_id, user_id, "assistant", assistant_reply)
 
-    # Tag handling
+    # Tag handling - Only increment when moving to a genuinely new question
     last_tag = session.get("asked_q")
     tag = parse_tag(assistant_reply)
 
-    print(last_tag, tag)
+    print(f"Last tag: {last_tag}, Current tag: {tag}")
 
+    # Only increment answered_count when moving to a genuinely new tagged question
+    # Follow-up questions or clarifications should NOT increment the count
     if last_tag and tag and last_tag != tag:
-        session["answered_count"] += 1
+        # Check if this is a genuine progression to next question
+        # (not just a clarification or follow-up)
+        last_phase, last_num = last_tag.split(".")
+        current_phase, current_num = tag.split(".")
+        
+        # Only increment if moving to next sequential question
+        if (current_phase == last_phase and int(current_num) == int(last_num) + 1) or \
+           (current_phase != last_phase and current_num == "01"):
+            session["answered_count"] += 1
+            print(f"Incremented answered_count to {session['answered_count']}")
 
     if tag:
         session["asked_q"] = tag
         session["current_phase"] = tag.split(".")[0]
 
-        if tag.startswith("BUSINESS_PLAN.") and int(tag.split(".")[1]) >= 9:
+        # Auto-transition to roadmap after business plan completion
+        if tag.startswith("BUSINESS_PLAN.") and int(tag.split(".")[1]) >= 46:
             session["asked_q"] = "ROADMAP.01"
             session["current_phase"] = "ROADMAP"
 
@@ -298,13 +310,7 @@ async def fetch_artifact(session_id: str, artifact_type: str):
     # This is a placeholder for the database operation
     pass
 
-# Updated TOTALS_BY_PHASE to reflect correct question counts
-TOTALS_BY_PHASE = {
-    "KYC": 20,
-    "BUSINESS_PLAN": 46,  # Updated based on full questionnaire
-    "ROADMAP": 1,
-    "IMPLEMENTATION": 10  # Estimated based on typical implementation tasks
-}
+# TOTALS_BY_PHASE is now defined in utils/progress.py
 
 @router.post("/sessions/{session_id}/generate-plan")
 async def generate_business_plan(request: Request, session_id: str):

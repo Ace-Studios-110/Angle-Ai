@@ -14,6 +14,7 @@ import BusinessPlanModal from "../../components/BusinessPlanModal";
 import VentureLoader from "../../components/VentureLoader";
 import RoadmapModal from "../../components/RoadmapModal";
 import QuestionNavigator from "../../components/QuestionNavigator";
+import SmartInput from "../../components/SmartInput";
 
 interface ConversationPair {
   question: string;
@@ -36,8 +37,8 @@ const PHASE_ORDER = [
 
 const QUESTION_COUNTS = {
   KYC: 20,
-  BUSINESS_PLAN: 9,
-  ROADMAP: 10,
+  BUSINESS_PLAN: 46,
+  ROADMAP: 1,
   IMPLEMENTATION: 10,
 };
 
@@ -505,89 +506,131 @@ export default function ChatPage() {
         {/* Fixed Input Area */}
         <div className="flex-shrink-0 bg-gradient-to-br from-slate-50 to-teal-50 px-3 py-3">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/50 p-3">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-6 h-6 sm:w-7 sm:h-7 bg-gray-300 rounded-full flex items-center justify-center text-xs flex-shrink-0">
-                  👤
+            <SmartInput
+              value={currentInput}
+              onChange={setCurrentInput}
+              onSubmit={handleNext}
+              placeholder="Type your response... (Enter to send)"
+              disabled={loading}
+              loading={loading}
+              currentQuestion={currentQuestion}
+            />
+
+            {/* Quick Actions Row */}
+            {progress.phase !== "KYC" && (
+              <div className="mt-4">
+                <div className="text-center mb-3">
+                  <p className="text-gray-500 text-sm font-medium">🚀 Quick Actions</p>
+                  <p className="text-gray-400 text-xs">Choose a tool to help with your response</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <textarea
-                    ref={inputRef}
-                    className="w-full rounded-lg p-2 sm:p-2.5 resize-none text-sm bg-gray-50 text-gray-900 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent focus:bg-white transition-all duration-200 placeholder-gray-500"
-                    rows={1}
-                    value={currentInput}
-                    onChange={(e) => setCurrentInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleNext();
-                      }
-                    }}
-                    placeholder="Type your response... (Enter to send)"
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* Support Button */}
+                  <button
+                    onClick={() => handleNext("Support")}
                     disabled={loading}
-                    style={{ minHeight: "38px", maxHeight: "120px" }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = "auto";
-                      target.style.height =
-                        Math.min(target.scrollHeight, 120) + "px";
-                    }}
-                  />
+                    className="group relative bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200 hover:border-blue-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-300">
+                        💬
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-blue-800 group-hover:text-blue-900">Support</div>
+                        <div className="text-xs text-blue-600 group-hover:text-blue-700">Get guided help</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </button>
+
+                  {/* Draft Button */}
+                  <button
+                    onClick={() => handleNext("Draft")}
+                    disabled={loading}
+                    className="group relative bg-gradient-to-br from-emerald-50 to-green-50 hover:from-emerald-100 hover:to-green-100 border border-emerald-200 hover:border-emerald-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-300">
+                        ✍️
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-emerald-800 group-hover:text-emerald-900">Draft</div>
+                        <div className="text-xs text-emerald-600 group-hover:text-emerald-700">Generate content</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-green-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </button>
+
+                  {/* Scrapping Button */}
+                  <button
+                    onClick={() => handleNext("Scrapping")}
+                    disabled={loading}
+                    className="group relative bg-gradient-to-br from-orange-50 to-amber-50 hover:from-orange-100 hover:to-amber-100 border border-orange-200 hover:border-orange-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-600 rounded-full flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-300">
+                        🔧
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-orange-800 group-hover:text-orange-900">Scrapping</div>
+                        <div className="text-xs text-orange-600 group-hover:text-orange-700">Polish ideas</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </button>
+
+                  {/* Kickstart Button */}
+                  <button
+                    onClick={() => handleNext("Kickstart")}
+                    disabled={loading}
+                    className="group relative bg-gradient-to-br from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 border border-purple-200 hover:border-purple-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-300">
+                        🚀
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-purple-800 group-hover:text-purple-900">Kickstart</div>
+                        <div className="text-xs text-purple-600 group-hover:text-purple-700">Get templates</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-violet-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </button>
+
+                  {/* Who do I contact? Button */}
+                  <button
+                    onClick={() => handleNext("Who do I contact?")}
+                    disabled={loading}
+                    className="group relative bg-gradient-to-br from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 border border-teal-200 hover:border-teal-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center text-white text-lg group-hover:scale-110 transition-transform duration-300">
+                        👥
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-semibold text-teal-800 group-hover:text-teal-900">Contact</div>
+                        <div className="text-xs text-teal-600 group-hover:text-teal-700">Find experts</div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </button>
                 </div>
-                <button
-                  className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white p-2 sm:p-2.5 rounded-lg font-medium text-sm disabled:opacity-50 shadow-md transition-all duration-200 flex-shrink-0"
-                  onClick={() => handleNext()}
-                  disabled={loading || !currentInput.trim()}
-                >
-                  {loading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                      />
-                    </svg>
-                  )}
-                </button>
+
+                <div className="mt-3 text-center">
+                  <p className="text-gray-400 text-xs">
+                    💡 Or type your detailed response below
+                  </p>
+                </div>
               </div>
+            )}
 
-              {/* Quick Actions Row */}
-              {progress.phase !== "KYC" && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2.5 gap-2 sm:gap-0">
-                  <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
-                    {["Support", "Draft", "Scrapping"].map((cmd) => (
-                      <button
-                        key={cmd}
-                        className="bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-700 px-2.5 py-1 rounded-md text-xs font-medium disabled:opacity-50 transition-colors duration-200 flex-1 sm:flex-none text-center"
-                        onClick={() => handleNext(cmd)}
-                        disabled={loading}
-                      >
-                        {cmd}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-gray-400 text-xs text-center sm:text-right w-full sm:w-auto">
-                    💡 Quick actions or type detailed response
-                  </p>
-                </div>
-              )}
-
-              {progress.phase === "KYC" && (
-                <div className="mt-2.5">
-                  <p className="text-gray-400 text-xs text-center">
-                    💡 Press Enter to send or Shift+Enter for new line
-                  </p>
-                </div>
-              )}
-            </div>
+            {progress.phase === "KYC" && (
+              <div className="mt-2.5">
+                <p className="text-gray-400 text-xs text-center">
+                  💡 Press Enter to send or Shift+Enter for new line
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -49,6 +49,17 @@ async def get_angel_reply(user_msg, history, session_data=None):
 
     user_content = user_msg["content"].strip()
     
+    # Add instruction for proper question formatting
+    FORMATTING_INSTRUCTION = """
+IMPORTANT: When responding, always follow this structure:
+1. Brief acknowledgment of their answer (supportive and encouraging)
+2. Blank line for visual separation
+3. Question number and progress (e.g., "Question 3 of 20 (15%)")
+4. The actual question content
+
+Only increment question numbers when moving to genuinely new questions, not for follow-ups or clarifications.
+"""
+    
     # Check if web search is needed based on session phase and content
     needs_web_search = False
     web_search_query = None
@@ -76,7 +87,8 @@ async def get_angel_reply(user_msg, history, session_data=None):
     msgs = [
         {"role": "system", "content": ANGEL_SYSTEM_PROMPT},
         {"role": "system", "content": TAG_PROMPT},
-        {"role": "system", "content": WEB_SEARCH_PROMPT}
+        {"role": "system", "content": WEB_SEARCH_PROMPT},
+        {"role": "system", "content": FORMATTING_INSTRUCTION}
     ]
     
     # Add search results if available
@@ -106,6 +118,10 @@ async def get_angel_reply(user_msg, history, session_data=None):
         reply_content = handle_scrapping_command(reply_content, notes, history)
     elif user_content.lower() == "support":
         reply_content = handle_support_command(reply_content, history)
+    elif user_content.lower() == "kickstart":
+        reply_content = handle_kickstart_command(reply_content, history, session_data)
+    elif user_content.lower() == "who do i contact?":
+        reply_content = handle_contact_command(reply_content, history, session_data)
 
     return reply_content
 
@@ -133,6 +149,22 @@ def handle_support_command(reply, history):
     
     # The AI should have generated strategic questions in the reply
     return support_response
+
+def handle_kickstart_command(reply, history, session_data):
+    """Handle the Kickstart command"""
+    kickstart_response = f"Here are some kickstart resources to get you moving:\n\n{reply}\n\n"
+    kickstart_response += "These templates and frameworks are customized for your business context. "
+    kickstart_response += "Would you like me to:\n• **Customize** these further for your specific needs\n• **Provide** additional templates or checklists\n• **Move forward** with the current resources"
+    
+    return kickstart_response
+
+def handle_contact_command(reply, history, session_data):
+    """Handle the Who do I contact? command"""
+    contact_response = f"Based on your business needs, here are some trusted professionals:\n\n{reply}\n\n"
+    contact_response += "These recommendations are tailored to your industry, location, and business stage. "
+    contact_response += "Would you like me to:\n• **Research** more specific providers in your area\n• **Provide** contact templates for reaching out\n• **Suggest** questions to ask when interviewing them"
+    
+    return contact_response
 
 def extract_conversation_context(history):
     """Extract relevant context from conversation history"""

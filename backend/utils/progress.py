@@ -19,7 +19,7 @@ def smart_trim_history(history_list, max_lines=150):
 
 TOTALS_BY_PHASE = {
     "KYC": 20,
-    "BUSINESS_PLAN": 9,
-    "ROADMAP": 0,
-    "IMPLEMENTATION": 0
+    "BUSINESS_PLAN": 46,
+    "ROADMAP": 1,
+    "IMPLEMENTATION": 10
 }
