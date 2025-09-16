@@ -360,6 +360,69 @@ def add_critiquing_insights(reply, session_data=None, user_input=None):
     
     return reply
 
+def identify_support_areas(session_data, history):
+    """Proactively identify areas where the entrepreneur needs the most support based on KYC and business plan answers"""
+    
+    if not session_data or not history:
+        return None
+    
+    # Analyze conversation history for gaps and areas needing support
+    support_areas = []
+    
+    # Check for common areas that need support
+    conversation_text = " ".join([msg.get('content', '') for msg in history if msg.get('role') == 'user'])
+    conversation_lower = conversation_text.lower()
+    
+    # Financial planning support
+    if any(keyword in conversation_lower for keyword in ['budget', 'funding', 'money', 'cost', 'price', 'financial']):
+        if not any(keyword in conversation_lower for keyword in ['detailed financial', 'financial projections', 'break even', 'revenue model']):
+            support_areas.append("Financial Planning & Projections")
+    
+    # Market research support
+    if any(keyword in conversation_lower for keyword in ['market', 'customers', 'competition', 'target']):
+        if not any(keyword in conversation_lower for keyword in ['market research', 'competitive analysis', 'customer demographics', 'market size']):
+            support_areas.append("Market Research & Competitive Analysis")
+    
+    # Operations support
+    if any(keyword in conversation_lower for keyword in ['business', 'operations', 'process', 'staff']):
+        if not any(keyword in conversation_lower for keyword in ['operational plan', 'staffing plan', 'processes', 'systems']):
+            support_areas.append("Operations & Process Planning")
+    
+    # Legal/compliance support
+    if any(keyword in conversation_lower for keyword in ['legal', 'license', 'permit', 'regulation', 'compliance']):
+        if not any(keyword in conversation_lower for keyword in ['business structure', 'licenses required', 'legal requirements']):
+            support_areas.append("Legal Structure & Compliance")
+    
+    # Marketing support
+    if any(keyword in conversation_lower for keyword in ['marketing', 'sales', 'customers', 'brand']):
+        if not any(keyword in conversation_lower for keyword in ['marketing strategy', 'sales process', 'brand positioning', 'customer acquisition']):
+            support_areas.append("Marketing & Sales Strategy")
+    
+    # Technology support
+    if any(keyword in conversation_lower for keyword in ['technology', 'software', 'website', 'digital', 'online']):
+        if not any(keyword in conversation_lower for keyword in ['technology requirements', 'digital tools', 'software needs']):
+            support_areas.append("Technology & Digital Tools")
+    
+    return support_areas
+
+def add_proactive_support_guidance(reply, session_data, history):
+    """Add proactive support guidance based on identified areas needing help"""
+    
+    support_areas = identify_support_areas(session_data, history)
+    
+    if support_areas:
+        support_guidance = "\n\n**🎯 Areas Where You May Need Additional Support:**\n"
+        support_guidance += "Based on your responses, I've identified these areas where you might benefit from deeper guidance:\n\n"
+        
+        for area in support_areas:
+            support_guidance += f"• **{area}** - Consider using 'Support' for detailed guidance in this area\n"
+        
+        support_guidance += "\n💡 **Pro Tip:** Use 'Support' followed by any of these areas for comprehensive guidance and strategic questions to help you think through these topics more thoroughly."
+        
+        reply += support_guidance
+    
+    return reply
+
 def ensure_proper_question_formatting(reply, session_data=None):
     """Ensure questions are properly formatted with line breaks and structure"""
     
@@ -639,6 +702,9 @@ Do NOT include question numbers, progress percentages, or step counts in your re
     # Suggest using Draft if user has already provided relevant information
     reply_content = suggest_draft_if_relevant(reply_content, session_data, user_content, history)
     
+    # Add proactive support guidance based on identified areas needing help
+    reply_content = add_proactive_support_guidance(reply_content, session_data, history)
+    
     # Check if we need to provide a section summary
     current_tag = session_data.get("asked_q") if session_data else None
     section_summary_info = check_for_section_summary(current_tag, session_data, history)
@@ -728,7 +794,10 @@ def handle_support_command(reply, history):
     support_response += "• Take time to think through these questions\n"
     support_response += "• Consider your unique situation and constraints\n"
     support_response += "• Feel free to ask for clarification on any specific aspect\n"
-    support_response += "• You can also use 'Draft' to have me create a comprehensive response based on your previous answers"
+    support_response += "• You can also use 'Draft' to have me create a comprehensive response based on your previous answers\n\n"
+    
+    support_response += "**Ready to Move Forward?**\n"
+    support_response += "Do you want me to use this information to answer this question? If you want to use portions of this information, or see additional info, just let me know and we'll work through it together."
     
     return support_response
 
@@ -760,26 +829,33 @@ def extract_conversation_context(history):
     return " | ".join(context)
 
 async def generate_business_plan_artifact(session_data, conversation_history):
-    """Generate comprehensive business plan artifact"""
+    """Generate comprehensive business plan artifact with deep research"""
     
-    # Conduct additional research for business plan
+    # Conduct comprehensive research for business plan
     industry = session_data.get('industry', 'general business')
     location = session_data.get('location', 'United States')
     
     current_year = datetime.now().year
     previous_year = current_year - 1
     
+    print(f"🔍 Conducting deep research for {industry} business in {location}")
+    
+    # Multiple research queries for comprehensive analysis
     market_research = await conduct_web_search(f"market analysis {industry} {location} {previous_year}")
     competitor_research = await conduct_web_search(f"top competitors {industry} business model analysis {previous_year}")
+    industry_trends = await conduct_web_search(f"{industry} industry trends opportunities {previous_year}")
+    financial_benchmarks = await conduct_web_search(f"{industry} financial benchmarks startup costs {previous_year}")
     
     business_plan_prompt = f"""
-    Generate a comprehensive, detailed business plan based on the following conversation history and research:
+    Generate a comprehensive, detailed business plan based on the following conversation history and extensive research:
     
     Session Data: {json.dumps(session_data, indent=2)}
     
-    Recent Research:
+    Deep Research Conducted:
     Market Analysis: {market_research}
     Competitor Analysis: {competitor_research}
+    Industry Trends: {industry_trends}
+    Financial Benchmarks: {financial_benchmarks}
     
     Conversation History: {json.dumps(conversation_history[-20:], indent=2)}
     
@@ -795,6 +871,8 @@ async def generate_business_plan_artifact(session_data, conversation_history):
     8. Funding Requirements
     9. Risk Analysis
     10. Implementation Timeline
+    
+    Include a note at the beginning that this business plan incorporates deep research and market analysis to provide comprehensive insights beyond what was discussed in the questionnaire.
     
     Make this a trust-building milestone that demonstrates deep understanding of both the customer and their business opportunity.
     """

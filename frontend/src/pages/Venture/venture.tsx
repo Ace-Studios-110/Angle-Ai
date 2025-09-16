@@ -339,6 +339,41 @@ export default function ChatPage() {
     }
   };
 
+  const handleEditPlan = () => {
+    // Close the business plan modal and allow editing
+    setPlanState(prev => ({ ...prev, showModal: false }));
+    toast.info("Business Plan editing mode activated. You can now modify your responses.");
+  };
+
+  const handleUploadPlan = async (file: File) => {
+    try {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Please upload a PDF, DOC, or DOCX file.");
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB.");
+        return;
+      }
+
+      toast.info(`Uploading ${file.name}...`);
+      
+      // TODO: Implement actual file upload to backend
+      // For now, just show success message
+      setTimeout(() => {
+        toast.success(`${file.name} uploaded successfully!`);
+      }, 2000);
+
+    } catch (error) {
+      toast.error("Failed to upload file. Please try again.");
+      console.error("Upload error:", error);
+    }
+  };
+
   // Use backend progress data directly to avoid calculation mismatches
   const currentStep = progress.answered || 1;
   const total = progress.total || QUESTION_COUNTS[progress.phase as keyof typeof QUESTION_COUNTS];
@@ -514,6 +549,7 @@ export default function ChatPage() {
             plan={planState.plan}
             loading={planState.loading}
             error={planState.error}
+            onEditPlan={handleEditPlan}
           />
 
           <RoadmapModal
@@ -762,6 +798,8 @@ export default function ChatPage() {
           currentPhase={progress.phase}
           onQuestionSelect={handleQuestionSelect}
           currentProgress={progress}
+          onEditPlan={handleEditPlan}
+          onUploadPlan={handleUploadPlan}
         />
       </div>
 

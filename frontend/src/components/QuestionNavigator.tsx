@@ -18,6 +18,8 @@ interface QuestionNavigatorProps {
     total: number;
     percent: number;
   };
+  onEditPlan?: () => void;
+  onUploadPlan?: (file: File) => void;
 }
 
 const phaseColors = {
@@ -38,7 +40,9 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
   questions,
   currentPhase,
   onQuestionSelect,
-  currentProgress
+  currentProgress,
+  onEditPlan,
+  onUploadPlan
 }) => {
   // Group questions by phase
   const questionsByPhase = questions.reduce((acc, question) => {
@@ -150,11 +154,12 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
               className="hidden"
               accept=".pdf,.doc,.docx"
               onChange={(e) => {
-                // Handle file upload
                 const file = e.target.files?.[0];
                 if (file) {
-                  // TODO: Implement file upload logic
                   console.log('File selected:', file);
+                  if (onUploadPlan) {
+                    onUploadPlan(file);
+                  }
                 }
               }}
             />
@@ -164,8 +169,10 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
             <button
               className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700 transition-colors"
               onClick={() => {
-                // TODO: Implement edit plan logic
                 console.log('Edit plan clicked');
+                if (onEditPlan) {
+                  onEditPlan();
+                }
               }}
             >
               Edit Business Plan

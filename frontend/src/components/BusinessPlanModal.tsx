@@ -8,7 +8,8 @@ const BusinessPlanModal: React.FC<{
   plan: string;
   loading?: boolean;
   error?: string;
-}> = ({ open, onClose, plan, loading = false, error }) => {
+  onEditPlan?: () => void;
+}> = ({ open, onClose, plan, loading = false, error, onEditPlan }) => {
   if (!open) return null;
 
   const markdownComponents = {
@@ -128,7 +129,14 @@ const BusinessPlanModal: React.FC<{
                 <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-sm">
                   Share Plan
                 </button>
-                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-sm">
+                <button 
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-sm"
+                  onClick={() => {
+                    if (onEditPlan) {
+                      onEditPlan();
+                    }
+                  }}
+                >
                   Edit Plan
                 </button>
               </div>
