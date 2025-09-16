@@ -4,7 +4,7 @@ from services.session_service import create_session, list_sessions, get_session,
 from services.chat_service import fetch_chat_history, save_chat_message, fetch_phase_chat_history
 from services.generate_plan_service import generate_full_business_plan, generate_full_roadmap_plan
 from services.angel_service import get_angel_reply
-from utils.progress import parse_tag, TOTALS_BY_PHASE, smart_trim_history
+from utils.progress import parse_tag, TOTALS_BY_PHASE, calculate_phase_progress, smart_trim_history
 from middlewares.auth import verify_auth_token
 from fastapi.middleware.cors import CORSMiddleware
 import re
@@ -43,7 +43,18 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
     await save_chat_message(session_id, user_id, "user", payload.content)
 
     # Get AI reply
-    assistant_reply = await get_angel_reply({"role": "user", "content": payload.content}, history)
+    angel_response = await get_angel_reply({"role": "user", "content": payload.content}, history)
+    
+    # Handle new return format
+    if isinstance(angel_response, dict):
+        assistant_reply = angel_response["reply"]
+        web_search_status = angel_response.get("web_search_status", {"is_searching": False, "query": None})
+        immediate_response = angel_response.get("immediate_response", None)
+    else:
+        # Backward compatibility
+        assistant_reply = angel_response
+        web_search_status = {"is_searching": False, "query": None}
+        immediate_response = None
 
     # Save assistant reply
     await save_chat_message(session_id, user_id, "assistant", assistant_reply)
@@ -52,7 +63,11 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
     last_tag = session.get("asked_q")
     tag = parse_tag(assistant_reply)
 
-    print(f"Last tag: {last_tag}, Current tag: {tag}")
+    print(f"🏷️ Tag Analysis:")
+    print(f"  - Last tag: {last_tag}")
+    print(f"  - Current tag: {tag}")
+    print(f"  - Current answered_count: {session.get('answered_count', 0)}")
+    print(f"  - Assistant reply preview: {assistant_reply[:100]}...")
 
     # Only increment answered_count when moving to a genuinely new tagged question
     # Follow-up questions or clarifications should NOT increment the count
@@ -62,22 +77,69 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
         last_phase, last_num = last_tag.split(".")
         current_phase, current_num = tag.split(".")
         
+        print(f"🔄 Tag Comparison:")
+        print(f"  - Last phase: {last_phase}, Last num: {last_num}")
+        print(f"  - Current phase: {current_phase}, Current num: {current_num}")
+        
         # Only increment if moving to next sequential question
         if (current_phase == last_phase and int(current_num) == int(last_num) + 1) or \
            (current_phase != last_phase and current_num == "01"):
             session["answered_count"] += 1
-            print(f"Incremented answered_count to {session['answered_count']}")
+            print(f"✅ Incremented answered_count to {session['answered_count']}")
+        else:
+            print(f"❌ No increment - not a sequential question progression")
+    elif not last_tag and tag:
+        # First question with a tag - this should increment
+        session["answered_count"] += 1
+        print(f"✅ First question with tag - incremented answered_count to {session['answered_count']}")
+    elif not tag:
+        print(f"⚠️ No tag found in assistant reply")
+        # Fallback: If no tag but we have a conversation, increment conservatively
+        if len(history) > 0:
+            # Only increment by 1 if we haven't incremented recently
+            current_count = session.get("answered_count", 0)
+            # Only increment if we have at least 2 messages (1 Q&A pair) and haven't incremented yet
+            if len(history) >= 2 and current_count == 0:
+                session["answered_count"] = 1
+                print(f"🔄 Fallback: Incremented answered_count to 1 (first question without tag)")
+            elif len(history) >= 4 and current_count == 1:
+                session["answered_count"] = 2
+                print(f"🔄 Fallback: Incremented answered_count to 2 (second question without tag)")
+    else:
+        print(f"⚠️ No tag change or missing tags")
 
     if tag:
         session["asked_q"] = tag
         session["current_phase"] = tag.split(".")[0]
+        print(f"📝 Updated session: asked_q={tag}, current_phase={tag.split('.')[0]}")
+    else:
+        # If no tag found, try to maintain current phase or set default
+        if not session.get("current_phase"):
+            session["current_phase"] = "KYC"
+            print(f"📝 Set default phase to KYC")
 
         # Auto-transition to roadmap after business plan completion
-        if tag.startswith("BUSINESS_PLAN.") and int(tag.split(".")[1]) >= 46:
+        # Only transition when we've completed all business plan questions (46 total)
+        if tag and tag.startswith("BUSINESS_PLAN.") and int(tag.split(".")[1]) > 46:
             session["asked_q"] = "ROADMAP.01"
             session["current_phase"] = "ROADMAP"
 
-    # Update session in DB
+    # Calculate progress based on current phase and answered count
+    current_phase = session["current_phase"]
+    answered_count = session["answered_count"]
+    current_tag = session.get("asked_q")
+    
+    print(f"📈 Progress Calculation Input:")
+    print(f"  - current_phase: {current_phase}")
+    print(f"  - answered_count: {answered_count}")
+    print(f"  - current_tag: {current_tag}")
+    print(f"  - session data: {session}")
+    
+    # Calculate phase-specific progress
+    phase_progress = calculate_phase_progress(current_phase, answered_count, current_tag)
+    print(f"📊 Progress Calculation Output: {phase_progress}")
+    
+    # Update session in DB (without phase_progress since it's calculated on the fly)
     await patch_session(session_id, {
         "asked_q": session["asked_q"],
         "answered_count": session["answered_count"],
@@ -88,20 +150,18 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
     display_reply = re.sub(r'Question \d+ of \d+ \(\d+%\):', '', assistant_reply, flags=re.IGNORECASE)
     display_reply = re.sub(r'\[\[Q:[A-Z_]+\.\d{2}]]', '', display_reply)
 
-    total = TOTALS_BY_PHASE.get(session["current_phase"], 0)
+    # Return progress information
+    progress_info = phase_progress
 
     return {
         "success": True,
         "message": "Angel chat processed successfully",
         "result": {
             "reply": display_reply.strip(),
-            "progress": {
-                "phase": session["current_phase"],
-                "answered": session["answered_count"],
-                "total": total,
-                "percent": round((session["answered_count"] / total) * 100) if total else 0
-            },
-            "session_id": session_id
+            "progress": progress_info,
+            "session_id": session_id,
+            "web_search_status": web_search_status,
+            "immediate_response": immediate_response
         }
     }
 

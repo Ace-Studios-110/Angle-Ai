@@ -15,6 +15,8 @@ import VentureLoader from "../../components/VentureLoader";
 import RoadmapModal from "../../components/RoadmapModal";
 import QuestionNavigator from "../../components/QuestionNavigator";
 import SmartInput from "../../components/SmartInput";
+import AcceptModifyButtons from "../../components/AcceptModifyButtons";
+import WebSearchIndicator from "../../components/WebSearchIndicator";
 
 interface ConversationPair {
   question: string;
@@ -28,13 +30,6 @@ interface ProgressState {
   percent: number;
 }
 
-const PHASE_ORDER = [
-  "KYC",
-  "BUSINESS_PLAN",
-  "ROADMAP",
-  "IMPLEMENTATION",
-] as const;
-
 const QUESTION_COUNTS = {
   KYC: 20,
   BUSINESS_PLAN: 46,
@@ -42,37 +37,6 @@ const QUESTION_COUNTS = {
   IMPLEMENTATION: 10,
 };
 
-function getAdjustedPhaseProgress(
-  phase: keyof typeof QUESTION_COUNTS,
-  answered: number
-) {
-  // Calculate how many questions came before this phase
-  const currentPhaseIndex = PHASE_ORDER.indexOf(phase);
-  const previousPhases = PHASE_ORDER.slice(0, currentPhaseIndex);
-  const offset = previousPhases.reduce(
-    (sum, key) => sum + QUESTION_COUNTS[key],
-    0
-  );
-
-  // Calculate current step within the phase (1-based)
-  const currentStep = Math.max(1, answered - offset);
-  const total = QUESTION_COUNTS[phase];
-
-  // Ensure currentStep doesn't exceed total for this phase
-  const clampedStep = Math.min(currentStep, total);
-
-  // Calculate percentage (1-100%)
-  const percent = Math.max(
-    1,
-    Math.min(100, Math.round((clampedStep / total) * 100))
-  );
-
-  return {
-    currentStep: clampedStep,
-    total,
-    percent,
-  };
-}
 
 export default function ChatPage() {
   const { id: sessionId } = useParams();
@@ -92,12 +56,100 @@ export default function ChatPage() {
     total: 20,
     percent: 0,
   });
+
+  // Console logging for progress debugging
+  useEffect(() => {
+    console.log("🔄 Progress State Updated:", {
+      phase: progress.phase,
+      answered: progress.answered,
+      total: progress.total,
+      percent: progress.percent,
+      timestamp: new Date().toISOString()
+    });
+  }, [progress]);
+
+  // Check if current question is a verification message
+  useEffect(() => {
+    if (currentQuestion) {
+      const isVerification = isVerificationMessage(currentQuestion);
+      setShowVerificationButtons(isVerification);
+      console.log("🔍 Verification Check:", { 
+        currentQuestion: currentQuestion.substring(0, 100) + "...", 
+        isVerification 
+      });
+    }
+  }, [currentQuestion]);
   const [planState, setPlanState] = useState({
     showModal: false,
     loading: false,
     error: "",
     plan: "",
   });
+  const [showVerificationButtons, setShowVerificationButtons] = useState(false);
+  const [webSearchStatus, setWebSearchStatus] = useState<{
+    is_searching: boolean;
+    query?: string;
+    completed?: boolean;
+  }>({
+    is_searching: false,
+    query: undefined,
+    completed: false
+  });
+
+  // Function to detect if the current message is a verification request
+  const isVerificationMessage = (message: string): boolean => {
+    const verificationKeywords = [
+      "does this look accurate",
+      "does this look correct",
+      "is this accurate",
+      "is this correct",
+      "please let me know where you'd like to modify",
+      "here's what i've captured so far"
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    return verificationKeywords.some(keyword => lowerMessage.includes(keyword));
+  };
+
+  // Handle Accept button click
+  const handleAccept = async () => {
+    setShowVerificationButtons(false);
+    setLoading(true);
+    
+    try {
+      const {
+        result: { reply, progress, web_search_status, immediate_response },
+      } = await fetchQuestion("Accept", sessionId!);
+      const formatted = formatAngelMessage(reply);
+      setCurrentQuestion(formatted);
+      setProgress(progress);
+      setWebSearchStatus(web_search_status || { is_searching: false, query: undefined, completed: false });
+      
+      // Show immediate response if available
+      if (immediate_response) {
+        toast.info(immediate_response, { 
+          autoClose: 5000,
+          position: "top-center",
+          className: "bg-blue-50 border border-blue-200 text-blue-800"
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch question:", error);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Modify button click
+  const handleModify = () => {
+    setShowVerificationButtons(false);
+    // The user can now type their modifications in the input field
+    setCurrentInput("I'd like to modify: ");
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
   const [roadmapState, setRoadmapState] = useState({
     showModal: false,
     loading: false,
@@ -162,10 +214,23 @@ export default function ChatPage() {
       setLoading(true);
       try {
         const {
-          result: { reply, progress },
+          result: { reply, progress, web_search_status, immediate_response },
         } = await fetchQuestion("", sessionId!);
+        console.log("📥 Initial Question API Response:", {
+          reply: reply.substring(0, 100) + "...",
+          progress: progress,
+          sessionId: sessionId,
+          web_search_status: web_search_status,
+          immediate_response: immediate_response
+        });
         setCurrentQuestion(formatAngelMessage(reply));
         setProgress(progress);
+        setWebSearchStatus(web_search_status || { is_searching: false, query: undefined, completed: false });
+        
+        // Show immediate response if available
+        if (immediate_response) {
+          toast.info(immediate_response, { autoClose: 5000 });
+        }
       } catch (error) {
         console.error("Failed to fetch initial question:", error);
         toast.error("Failed to fetch initial question");
@@ -193,11 +258,29 @@ export default function ChatPage() {
 
     try {
       const {
-        result: { reply, progress },
+        result: { reply, progress, web_search_status, immediate_response },
       } = await fetchQuestion(input, sessionId!);
+      console.log("📥 Question API Response:", {
+        input: input,
+        reply: reply.substring(0, 100) + "...",
+        progress: progress,
+        sessionId: sessionId,
+        web_search_status: web_search_status,
+        immediate_response: immediate_response
+      });
       const formatted = formatAngelMessage(reply);
       setCurrentQuestion(formatted);
       setProgress(progress);
+      setWebSearchStatus(web_search_status || { is_searching: false, query: undefined, completed: false });
+      
+      // Show immediate response if available
+      if (immediate_response) {
+        toast.info(immediate_response, { 
+          autoClose: 5000,
+          position: "top-center",
+          className: "bg-blue-50 border border-blue-200 text-blue-800"
+        });
+      }
     } catch (error) {
       console.error("Failed to fetch question:", error);
       toast.error("Something went wrong.");
@@ -256,10 +339,22 @@ export default function ChatPage() {
     }
   };
 
-  const { currentStep, total, percent } = getAdjustedPhaseProgress(
-    progress.phase,
-    progress.answered
-  );
+  // Use backend progress data directly to avoid calculation mismatches
+  const currentStep = progress.answered || 1;
+  const total = progress.total || QUESTION_COUNTS[progress.phase as keyof typeof QUESTION_COUNTS];
+  const percent = progress.percent || 1;
+
+  // Console logging for calculated display values
+  console.log("📊 Display Values Calculated:", {
+    currentStep: currentStep,
+    total: total,
+    percent: percent,
+    progressPhase: progress.phase,
+    progressAnswered: progress.answered,
+    progressTotal: progress.total,
+    progressPercent: progress.percent,
+    questionCounts: QUESTION_COUNTS
+  });
   const showBusinessPlanButton = ["ROADMAP", "IMPLEMENTATION"].includes(
     progress.phase
   );
@@ -286,6 +381,14 @@ export default function ChatPage() {
       completed: false,
     });
   }
+
+  // Console logging for question tracking
+  console.log("❓ Question Tracking:", {
+    historyLength: history.length,
+    currentQuestion: currentQuestion ? currentQuestion.substring(0, 50) + "..." : "None",
+    totalQuestions: questions.length,
+    questions: questions.map(q => ({ id: q.id, number: q.number, completed: q.completed }))
+  });
 
   const handleQuestionSelect = async (questionId: string) => {
     const numberStr = questionId.split(".")[1];
@@ -506,6 +609,23 @@ export default function ChatPage() {
         {/* Fixed Input Area */}
         <div className="flex-shrink-0 bg-gradient-to-br from-slate-50 to-teal-50 px-3 py-3">
           <div className="max-w-4xl mx-auto">
+            {/* Web Search Progress Indicator */}
+            <WebSearchIndicator 
+              isSearching={webSearchStatus.is_searching} 
+              searchQuery={webSearchStatus.query} 
+            />
+
+            {/* Accept/Modify Buttons for Verification */}
+            {showVerificationButtons && !loading && (
+              <div className="mb-4">
+                <AcceptModifyButtons
+                  onAccept={handleAccept}
+                  onModify={handleModify}
+                  disabled={loading}
+                />
+              </div>
+            )}
+            
             <SmartInput
               value={currentInput}
               onChange={setCurrentInput}
@@ -539,12 +659,12 @@ export default function ChatPage() {
                         <div className="text-sm font-semibold text-blue-800 group-hover:text-blue-900">Support</div>
                         <div className="text-xs text-blue-600 group-hover:text-blue-700">Get guided help</div>
                       </div>
-                    </div>
+                </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </button>
 
                   {/* Draft Button */}
-                  <button
+                <button
                     onClick={() => handleNext("Draft")}
                     disabled={loading}
                     className="group relative bg-gradient-to-br from-emerald-50 to-green-50 hover:from-emerald-100 hover:to-green-100 border border-emerald-200 hover:border-emerald-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
@@ -577,7 +697,7 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </button>
+                </button>
 
                   {/* Kickstart Button */}
                   <button
@@ -593,14 +713,14 @@ export default function ChatPage() {
                         <div className="text-sm font-semibold text-purple-800 group-hover:text-purple-900">Kickstart</div>
                         <div className="text-xs text-purple-600 group-hover:text-purple-700">Get templates</div>
                       </div>
-                    </div>
+              </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-violet-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </button>
 
                   {/* Who do I contact? Button */}
-                  <button
+                      <button
                     onClick={() => handleNext("Who do I contact?")}
-                    disabled={loading}
+                        disabled={loading}
                     className="group relative bg-gradient-to-br from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 border border-teal-200 hover:border-teal-300 rounded-xl p-4 transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     <div className="flex flex-col items-center space-y-2">
@@ -613,24 +733,24 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </button>
-                </div>
+                      </button>
+                  </div>
 
                 <div className="mt-3 text-center">
                   <p className="text-gray-400 text-xs">
                     💡 Or type your detailed response below
                   </p>
                 </div>
-              </div>
-            )}
+                </div>
+              )}
 
-            {progress.phase === "KYC" && (
-              <div className="mt-2.5">
-                <p className="text-gray-400 text-xs text-center">
-                  💡 Press Enter to send or Shift+Enter for new line
-                </p>
-              </div>
-            )}
+              {progress.phase === "KYC" && (
+                <div className="mt-2.5">
+                  <p className="text-gray-400 text-xs text-center">
+                    💡 Press Enter to send or Shift+Enter for new line
+                  </p>
+                </div>
+              )}
           </div>
         </div>
       </div>

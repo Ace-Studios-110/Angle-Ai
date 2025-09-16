@@ -45,6 +45,12 @@ export interface AngelResponse {
             total: number
             percent: number
         };
+        web_search_status?: {
+            is_searching: boolean;
+            query?: string;
+            completed?: boolean;
+        };
+        immediate_response?: string;
     };
 }
 
