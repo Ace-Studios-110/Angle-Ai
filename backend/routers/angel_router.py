@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, UploadFile, File
 from schemas.angel_schemas import ChatRequestSchema, CreateSessionSchema
 from services.session_service import create_session, list_sessions, get_session, patch_session
 from services.chat_service import fetch_chat_history, save_chat_message, fetch_phase_chat_history
@@ -8,6 +8,9 @@ from utils.progress import parse_tag, TOTALS_BY_PHASE, calculate_phase_progress,
 from middlewares.auth import verify_auth_token
 from fastapi.middleware.cors import CORSMiddleware
 import re
+import os
+import uuid
+from datetime import datetime
 
 router = APIRouter(
     tags=["Angel"],
@@ -410,3 +413,62 @@ async def get_phase_chat_history(
         "result": messages,
         "has_more": len(messages) == limit
     }
+
+@router.post("/sessions/{session_id}/upload-business-plan")
+async def upload_business_plan(
+    session_id: str,
+    request: Request,
+    file: UploadFile = File(...)
+):
+    """Upload and process a business plan document"""
+    user_id = request.state.user["id"]
+    
+    # Validate file type
+    allowed_types = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if file.content_type not in allowed_types:
+        return {
+            "success": False,
+            "error": "Please upload a PDF, DOC, or DOCX file."
+        }
+    
+    # Validate file size (max 10MB)
+    if file.size > 10 * 1024 * 1024:
+        return {
+            "success": False,
+            "error": "File size must be less than 10MB."
+        }
+    
+    try:
+        # Create uploads directory if it doesn't exist
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'pdf'
+        unique_filename = f"{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Create a chat message about the uploaded document
+        upload_message = f"📄 **Business Plan Document Uploaded**\n\n**File:** {file.filename}\n**Size:** {file.size} bytes\n**Type:** {file.content_type}\n**Uploaded:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nI've received your business plan document. I can help you:\n\n• **Analyze** the content and provide feedback\n• **Extract** key information for our business planning process\n• **Compare** it with our questionnaire responses\n• **Suggest** improvements or missing sections\n\nWould you like me to analyze this document and integrate it into our business planning process?"
+        
+        # Save the upload message to chat history
+        await save_chat_message(session_id, "assistant", upload_message)
+        
+        return {
+            "success": True,
+            "message": "Business plan uploaded successfully",
+            "filename": file.filename,
+            "file_id": unique_filename,
+            "chat_message": upload_message
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to upload file: {str(e)}"
+        }

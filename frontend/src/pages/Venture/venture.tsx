@@ -7,6 +7,7 @@ import {
   fetchBusinessPlan,
   fetchQuestion,
   fetchRoadmapPlan,
+  uploadBusinessPlan,
 } from "../../services/authService";
 import { toast } from "react-toastify";
 import ProgressCircle from "../../components/ProgressCircle";
@@ -347,26 +348,27 @@ export default function ChatPage() {
 
   const handleUploadPlan = async (file: File) => {
     try {
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("Please upload a PDF, DOC, or DOCX file.");
-        return;
-      }
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB.");
-        return;
-      }
-
       toast.info(`Uploading ${file.name}...`);
       
-      // TODO: Implement actual file upload to backend
-      // For now, just show success message
-      setTimeout(() => {
+      const response = await uploadBusinessPlan(sessionId!, file);
+      
+      if (response.success) {
         toast.success(`${file.name} uploaded successfully!`);
-      }, 2000);
+        
+        // Add the upload message to chat history
+        if (response.chat_message) {
+          setHistory(prev => [...prev, {
+            question: "",
+            answer: response.chat_message!
+          }]);
+        }
+        
+        // Refresh the current question to show the upload response
+        await fetchQuestion(sessionId!, "");
+        
+      } else {
+        toast.error(response.error || "Upload failed");
+      }
 
     } catch (error) {
       toast.error("Failed to upload file. Please try again.");

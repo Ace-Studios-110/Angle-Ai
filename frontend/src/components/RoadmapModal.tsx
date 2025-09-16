@@ -99,8 +99,44 @@ const RoadmapModal: React.FC<{
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
           {loading ? (
-            <div className="h-full flex items-center justify-center text-slate-500">
-              ⏳ Generating roadmap...
+            <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-6">
+              <div className="text-6xl">🗺️</div>
+              <div className="text-center">
+                <h3 className="text-xl font-semibold mb-2">Generating Your Personalized Roadmap</h3>
+                <p className="text-sm mb-4">Conducting deep research and analysis...</p>
+                
+                {/* Progress Steps */}
+                <div className="space-y-3 max-w-md">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                    <span className="text-sm">Analyzing your business information</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                    <span className="text-sm">Researching industry timelines</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                    <span className="text-sm">Analyzing regulatory requirements</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                    <span className="text-sm">Researching funding timelines</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">✓</div>
+                    <span className="text-sm">Developing market entry strategy</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs animate-pulse">⏳</div>
+                    <span className="text-sm">Generating comprehensive roadmap</span>
+                  </div>
+                </div>
+                
+                <div className="mt-6 text-xs text-slate-400">
+                  This may take 30-60 seconds while we conduct thorough research
+                </div>
+              </div>
             </div>
           ) : error ? (
             <div className="h-full flex flex-col items-center justify-center space-y-4 text-center">

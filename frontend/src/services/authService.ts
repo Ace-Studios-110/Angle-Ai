@@ -159,6 +159,34 @@ export async function fetchRoadmapPlan(
     }
 }
 
+export async function uploadBusinessPlan(
+    sessionId: string,
+    file: File
+): Promise<{ success: boolean; message?: string; error?: string; chat_message?: string }> {
+    const token = localStorage.getItem('sb_access_token');
+    if (!token) throw new Error('Not authenticated');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const { data } = await httpClient.post<{ success: boolean; message?: string; error?: string; chat_message?: string }>(
+            `${BASE}/angel/sessions/${sessionId}/upload-business-plan`,
+            formData,
+            { 
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                } 
+            }
+        );
+        return data;
+    } catch (err) {
+        const message = (err as ErrorResponse).response?.data.error || 'Upload failed';
+        throw new Error(message);
+    }
+}
+
 export async function fetchNextQuestion(
     userMessage: string,
     contextData: { phase: 'kyc'; stepIndex: number; skipStep?: boolean }

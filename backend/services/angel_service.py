@@ -250,7 +250,7 @@ def suggest_draft_if_relevant(reply, session_data, user_input, history):
                     user_has_relevant_info = True
                     break
         
-        if user_has_relevant_info:
+        if user_has_relevant_info and "💡 Quick Tip:" not in reply:
             # Add suggestion to use Draft
             draft_suggestion = f"\n\n💡 **Quick Tip**: Based on some info you've previously entered, you can also select **\"Draft\"** and I'll use that information to create a draft answer for you to review and save you some time."
             reply += draft_suggestion
@@ -408,9 +408,13 @@ def identify_support_areas(session_data, history):
 def add_proactive_support_guidance(reply, session_data, history):
     """Add proactive support guidance based on identified areas needing help"""
     
+    # Only add support guidance if not already present in the reply
+    if "💡 Quick Tip:" in reply or "🎯 Areas Where You May Need Additional Support:" in reply:
+        return reply
+    
     support_areas = identify_support_areas(session_data, history)
     
-    if support_areas:
+    if support_areas and len(support_areas) > 0:
         support_guidance = "\n\n**🎯 Areas Where You May Need Additional Support:**\n"
         support_guidance += "Based on your responses, I've identified these areas where you might benefit from deeper guidance:\n\n"
         
