@@ -20,6 +20,7 @@ app = FastAPI(title="Founderport Angel Assistant")
 # ✅ CORS Support
 # Enhanced CORS middleware
 origins = [
+    "https://angle-ai-zsdt.vercel.app",
     "https://angle-ai.vercel.app",
     "http://localhost:3000",
     "http://localhost",
