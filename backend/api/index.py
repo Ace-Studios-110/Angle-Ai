@@ -20,7 +20,7 @@ app = FastAPI(title="Founderport Angel Assistant")
 # ✅ CORS Support
 # Enhanced CORS middleware
 origins = [
-    "https://angle-ai-zsdt.vercel.app",
+    "https://angle-ai-oatf.vercel.app",
     "https://angle-ai.vercel.app",
     "http://localhost:3000",
     "http://localhost",
@@ -39,10 +39,18 @@ app.add_middleware(
 # Manual OPTIONS handler for problematic preflight requests
 @app.options("/{full_path:path}")
 async def options_handler(request: Request, full_path: str):
+    origin = request.headers.get("origin")
     response = Response()
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    
+    # Check if origin is in allowed origins
+    if origin in origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+    
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Max-Age"] = "86400"
     return response
 
