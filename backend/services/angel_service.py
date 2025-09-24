@@ -89,11 +89,16 @@ def format_response_structure(reply):
     if "business before" in formatted_reply.lower() and "?" in formatted_reply:
         # Pattern: "Have you started a business before? Yes / No"
         business_pattern = r'([^?]+\?)\s+(Yes\s*/\s*No)'
-        formatted_reply = re.sub(business_pattern, r'\1\n\n\2', formatted_reply)
+        formatted_reply = re.sub(business_pattern, r'\1\n\n• Yes\n• No', formatted_reply)
+    
+    # General pattern for Yes/No questions
+    # Pattern: "Question? Yes / No" or "Question? Yes/No"
+    yes_no_pattern = r'([^?]+\?)\s+(Yes\s*/\s*No)'
+    formatted_reply = re.sub(yes_no_pattern, r'\1\n\n• Yes\n• No', formatted_reply)
     
     # General pattern for multiple choice questions
     # Pattern: "Question? Option1 Option2 Option3 Option4"
-    multi_choice_pattern = r'([^?]+\?)\s+([A-Za-z\s]+(?:employed|time|Student|Unemployed|freelancer|Other|Yes|No)[^?]*)'
+    multi_choice_pattern = r'([^?]+\?)\s+([A-Za-z\s]+(?:employed|time|Student|Unemployed|freelancer|Other)[^?]*)'
     formatted_reply = re.sub(multi_choice_pattern, 
         lambda m: f"{m.group(1)}\n\n• {m.group(2).replace(' ', ' • ')}", 
         formatted_reply)
@@ -250,7 +255,7 @@ def suggest_draft_if_relevant(reply, session_data, user_input, history):
                     user_has_relevant_info = True
                     break
         
-        if user_has_relevant_info and "💡 Quick Tip:" not in reply:
+        if user_has_relevant_info and "💡 Quick Tip:" not in reply and "💡 **Quick Tip**:" not in reply and "💡 **Pro Tip**:" not in reply:
             # Add suggestion to use Draft
             draft_suggestion = f"\n\n💡 **Quick Tip**: Based on some info you've previously entered, you can also select **\"Draft\"** and I'll use that information to create a draft answer for you to review and save you some time."
             reply += draft_suggestion
@@ -409,7 +414,7 @@ def add_proactive_support_guidance(reply, session_data, history):
     """Add proactive support guidance based on identified areas needing help"""
     
     # Only add support guidance if not already present in the reply
-    if "💡 Quick Tip:" in reply or "🎯 Areas Where You May Need Additional Support:" in reply:
+    if "💡 Quick Tip:" in reply or "💡 **Quick Tip**:" in reply or "💡 **Pro Tip**:" in reply or "🎯 Areas Where You May Need Additional Support:" in reply:
         return reply
     
     support_areas = identify_support_areas(session_data, history)
@@ -432,10 +437,12 @@ def ensure_proper_question_formatting(reply, session_data=None):
     
     # Look for patterns where questions are not properly formatted
     formatting_patterns = [
+        # Pattern: Yes/No questions without proper formatting
+        (r'([^?]+\?)\s+(Yes\s*/\s*No)', r'\1\n\n• Yes\n• No'),
         # Pattern: Question without proper line breaks
         (r'([^?]+\?)\s+([A-Z][^?]+)', r'\1\n\n\2'),
         # Pattern: Multiple choice options without proper formatting
-        (r'([^?]+\?)\s+([A-Z][^?]+(?:employed|time|Student|Unemployed|freelancer|Other|Yes|No)[^?]*)', 
+        (r'([^?]+\?)\s+([A-Z][^?]+(?:employed|time|Student|Unemployed|freelancer|Other)[^?]*)', 
          r'\1\n\n• \2'),
     ]
     
@@ -511,7 +518,8 @@ For YES/NO questions:
 "That's great, Ahmed!
 
 Have you started a business before?
-Yes / No"
+• Yes
+• No"
 
 For multiple choice questions:
 "That's perfect, Ahmed!
@@ -539,15 +547,22 @@ Here's what I've captured so far:
 
 Does this look accurate to you? If not, please let me know where you'd like to modify and we'll work through this some more."
 
-❌ NEVER DO THIS: "What's your current work situation? Full-time employed Part-time Student Unemployed Self-employed/freelancer Other"
+❌ NEVER DO THIS: 
+"What's your current work situation? Full-time employed Part-time Student Unemployed Self-employed/freelancer Other"
+"Have you started a business before? Yes / No"
 
-✅ ALWAYS DO THIS: "What's your current work situation?
+✅ ALWAYS DO THIS: 
+"What's your current work situation?
 • Full-time employed
 • Part-time
 • Student
 • Unemployed
 • Self-employed/freelancer
 • Other"
+
+"Have you started a business before?
+• Yes
+• No"
 
 BUSINESS PLAN SPECIFIC RULES:
 • Ask ONE question at a time in EXACT sequential order
