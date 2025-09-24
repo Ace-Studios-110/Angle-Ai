@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface AcceptModifyButtonsProps {
   onAccept: () => void;
   onModify: () => void;
