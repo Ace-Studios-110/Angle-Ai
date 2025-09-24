@@ -34,14 +34,19 @@ async def root():
     }
 
 # ✅ CORS Support
+origins = [
+    "https://angle-ai-zsdt.vercel.app",
+    "https://angle-ai.vercel.app",
+    "http://localhost:3000",
+    "http://localhost",
+    "http://localhost:8080",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://angle-ai-development.vercel.app",  # frontend
-        "http://localhost:3000"  # if testing locally
-    ],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
