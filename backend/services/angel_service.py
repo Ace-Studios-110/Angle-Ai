@@ -491,22 +491,120 @@ def inject_missing_tag(reply, session_data=None):
     
     return reply
 
+async def handle_business_plan_completion(session_data, history):
+    """Handle the transition from Business Plan completion to Roadmap phase"""
+    
+    # Generate comprehensive business plan summary
+    business_plan_summary = await generate_business_plan_summary(session_data, history)
+    
+    # Create the transition message
+    transition_message = f"""🎉 **CONGRATULATIONS! Planning Champion Award** 🎉
+
+You've successfully completed your comprehensive business plan! This is a significant milestone in your entrepreneurial journey.
+
+**"Success is not final; failure is not fatal: it is the courage to continue that counts."** – Winston Churchill
+
+---
+
+## 📋 **Comprehensive Business Plan Recap**
+
+{business_plan_summary}
+
+---
+
+## 🎯 **What's Next: Roadmap Generation**
+
+Based on your detailed business plan, I will now generate a comprehensive, actionable launch roadmap that translates your plan into explicit, chronological tasks. This roadmap will include:
+
+• **Legal Formation** - Business structure, licensing, permits
+• **Financial Planning** - Funding strategies, budgeting, accounting setup
+• **Product & Operations** - Supply chain, equipment, operational processes
+• **Marketing & Sales** - Brand positioning, customer acquisition, sales processes
+• **Full Launch & Scaling** - Go-to-market strategy, growth planning
+
+The roadmap will be tailored specifically to your business, industry, and location, with research-backed recommendations and local service provider options.
+
+---
+
+## 🚀 **Ready to Move Forward?**
+
+Please review your business plan summary above. If everything looks accurate and complete, you can:
+
+**✅ Approve Plan** - Proceed to roadmap generation
+**🔄 Revisit Plan** - Modify any aspects that need adjustment
+
+What would you like to do?"""
+
+    return {
+        "reply": transition_message,
+        "web_search_status": {"is_searching": False, "query": None},
+        "immediate_response": None,
+        "transition_phase": "PLAN_TO_ROADMAP",
+        "business_plan_summary": business_plan_summary
+    }
+
+async def generate_business_plan_summary(session_data, history):
+    """Generate a comprehensive summary of the business plan"""
+    
+    # Extract key information from session data and history
+    summary_sections = []
+    
+    # Business Foundation
+    if session_data.get("business_idea_brief"):
+        summary_sections.append(f"**Business Idea:** {session_data.get('business_idea_brief')}")
+    
+    if session_data.get("business_type"):
+        summary_sections.append(f"**Business Type:** {session_data.get('business_type')}")
+    
+    if session_data.get("industry"):
+        summary_sections.append(f"**Industry:** {session_data.get('industry')}")
+    
+    if session_data.get("location"):
+        summary_sections.append(f"**Location:** {session_data.get('location')}")
+    
+    if session_data.get("motivation"):
+        summary_sections.append(f"**Motivation:** {session_data.get('motivation')}")
+    
+    # Extract additional information from conversation history
+    user_responses = [msg.get('content', '') for msg in history if msg.get('role') == 'user']
+    conversation_text = ' '.join(user_responses)
+    
+    # Generate AI-powered summary
+    summary_prompt = f"""
+    Create a comprehensive business plan summary based on the following information:
+    
+    Session Data: {session_data}
+    Conversation History: {conversation_text[:2000]}  # Limit to avoid token limits
+    
+    Provide a structured summary that includes:
+    1. Business Overview
+    2. Target Market
+    3. Products/Services
+    4. Business Model
+    5. Key Strategies
+    6. Financial Considerations
+    7. Next Steps
+    
+    Make it professional and comprehensive, highlighting the key decisions and milestones achieved.
+    """
+    
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": summary_prompt}],
+            temperature=0.6,
+            max_tokens=1000
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error generating business plan summary: {e}")
+        return "Business plan summary generation in progress..."
+
 async def get_angel_reply(user_msg, history, session_data=None):
     import time
     start_time = time.time()
     
-    # Always default to "hi" if input is empty
-    if not user_msg.get("content") or user_msg["content"].strip() == "":
-        user_msg["content"] = "hi"
-
-    user_content = user_msg["content"].strip()
-    print(f"🚀 Starting Angel reply generation for: {user_content[:50]}...")
-    
-    # Handle Accept response for verification
-    if user_content.lower() == "accept":
-        return "Great! Let's move to the next question..."
-    
-    # Add instruction for proper question formatting
+    # Define formatting instruction at the top to avoid UnboundLocalError
     FORMATTING_INSTRUCTION = """
 CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
 
@@ -595,6 +693,112 @@ CRITIQUING SYSTEM (50/50 APPROACH):
 
 Do NOT include question numbers, progress percentages, or step counts in your response.
 """
+    
+    # Handle empty input based on context
+    if not user_msg.get("content") or user_msg["content"].strip() == "":
+        # If we're revisiting business plan, continue with current question
+        if session_data and session_data.get("current_phase") == "BUSINESS_PLAN":
+            current_tag = session_data.get("asked_q", "BUSINESS_PLAN.01")
+            if current_tag and current_tag.startswith("BUSINESS_PLAN."):
+                # Generate the current question
+                question_prompt = f"""
+                Generate the business plan question for tag: {current_tag}
+                
+                Make sure to:
+                1. Ask the appropriate business plan question for this tag
+                2. Include the proper tag: [[Q:{current_tag}]]
+                3. Use structured format with proper line breaks
+                4. Provide context if this is a verification or continuation
+                """
+                
+                response = await client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": ANGEL_SYSTEM_PROMPT},
+                        {"role": "system", "content": TAG_PROMPT},
+                        {"role": "system", "content": FORMATTING_INSTRUCTION},
+                        {"role": "user", "content": question_prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                
+                return response.choices[0].message.content
+        
+        # Default to "hi" for other cases
+        user_msg["content"] = "hi"
+
+    user_content = user_msg["content"].strip()
+    print(f"🚀 Starting Angel reply generation for: {user_content[:50]}...")
+    
+    # Check if Business Plan phase is complete (question 46)
+    if session_data and session_data.get("current_phase") == "BUSINESS_PLAN":
+        current_tag = session_data.get("asked_q", "")
+        if current_tag and current_tag.startswith("BUSINESS_PLAN."):
+            try:
+                question_num = int(current_tag.split(".")[1])
+                if question_num >= 46:  # Business Plan complete
+                    return await handle_business_plan_completion(session_data, history)
+            except (ValueError, IndexError):
+                pass
+    
+    # Handle Accept response for verification
+    if user_content.lower() == "accept":
+        # Check if we're in a verification flow
+        if session_data and session_data.get("current_phase") == "BUSINESS_PLAN":
+            # Move to next question in business plan
+            current_tag = session_data.get("asked_q", "BUSINESS_PLAN.01")
+            if current_tag and current_tag.startswith("BUSINESS_PLAN."):
+                try:
+                    current_num = int(current_tag.split(".")[1])
+                    next_num = current_num + 1
+                    next_tag = f"BUSINESS_PLAN.{next_num:02d}"
+                    
+                    # Check if we've reached the end of business plan questions
+                    if next_num > 46:
+                        # Business plan is complete, trigger completion
+                        return await handle_business_plan_completion(session_data, history)
+                    
+                    # Generate next question
+                    next_question_prompt = f"""
+                    The user has accepted the verification for business plan question {current_tag}. 
+                    Now move to the next business plan question: {next_tag}
+                    
+                    Generate the next business plan question in the sequence. Make sure to:
+                    1. Acknowledge their acceptance briefly (1-2 sentences)
+                    2. Ask the next sequential business plan question
+                    3. Include the proper tag: [[Q:{next_tag}]]
+                    4. Use structured format with proper line breaks
+                    5. Make it feel like a natural continuation of the business planning process
+                    """
+                    
+                    response = await client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": ANGEL_SYSTEM_PROMPT},
+                            {"role": "system", "content": TAG_PROMPT},
+                            {"role": "system", "content": FORMATTING_INSTRUCTION},
+                            {"role": "user", "content": next_question_prompt}
+                        ],
+                        temperature=0.7,
+                        max_tokens=1000
+                    )
+                    
+                    # Return the response with session update info
+                    return {
+                        "reply": response.choices[0].message.content,
+                        "update_session": {
+                            "asked_q": next_tag,
+                            "answered_count": session_data.get("answered_count", 0) + 1
+                        }
+                    }
+                except (ValueError, IndexError):
+                    pass
+        
+        # Default response for other cases
+        return "Great! Let's move to the next question..."
+    
+    # Add instruction for proper question formatting
     
     # Check if web search is needed based on session phase and content
     needs_web_search = False
@@ -944,3 +1148,232 @@ async def generate_roadmap_artifact(session_data, business_plan_data):
     )
     
     return response.choices[0].message.content
+
+async def handle_roadmap_generation(session_data, history):
+    """Handle the transition from Plan to Roadmap phase"""
+    
+    # Generate comprehensive roadmap using RAG principles
+    roadmap_content = await generate_detailed_roadmap(session_data, history)
+    
+    # Create the roadmap presentation message
+    roadmap_message = f"""🗺️ **Your Launch Roadmap is Ready!** 🗺️
+
+Congratulations! Based on your comprehensive business plan, I've generated a detailed, actionable launch roadmap that will guide you from planning to execution.
+
+**"The way to get started is to quit talking and begin doing."** – Walt Disney
+
+---
+
+## 📋 **Your Launch Roadmap Overview**
+
+{roadmap_content}
+
+---
+
+## 🎯 **Key Features of Your Roadmap**
+
+✅ **Research-Backed**: Every recommendation is based on current best practices and industry standards
+✅ **Actionable Tasks**: Each phase contains specific, executable tasks with clear timelines
+✅ **Multiple Options**: Decision points include various options to fit your specific needs
+✅ **Local Resources**: Provider recommendations include local service providers where applicable
+✅ **Progress Tracking**: Built-in milestones and success metrics for each phase
+
+---
+
+## 🚀 **What's Next**
+
+Your roadmap is now ready for implementation! Each phase is designed to build upon the previous one, ensuring a smooth transition from planning to execution.
+
+**Ready to begin implementation?** Let me know when you're ready to start executing your roadmap, and I'll guide you through each step with detailed instructions, resources, and support.
+
+---
+
+*This roadmap is tailored specifically to your business, industry, and location. Every recommendation is designed to help you build the business of your dreams.*
+"""
+    
+    return {
+        "reply": roadmap_message,
+        "transition_phase": "ROADMAP_GENERATED",
+        "roadmap_content": roadmap_content
+    }
+
+async def handle_roadmap_to_implementation_transition(session_data, history):
+    """Handle the transition from Roadmap to Implementation phase"""
+    
+    # Extract business context from session data
+    business_name = session_data.get('business_name', 'Your Business')
+    industry = session_data.get('industry', 'general business')
+    location = session_data.get('location', 'United States')
+    
+    # Create comprehensive transition message
+    transition_message = f"""🚀 **Roadmap to Implementation Transition** 🚀
+
+Congratulations! You've successfully completed your comprehensive business plan and detailed launch roadmap for "{business_name}". Now it's time to transition from planning into execution mode.
+
+**"Success is not final; failure is not fatal: it is the courage to continue that counts."** – Winston Churchill
+
+---
+
+## 🎯 **Time to Transition from Planning to Action**
+
+You've built a solid foundation with your business plan and roadmap. The time has come to transition from planning into execution mode. This is where your entrepreneurial journey truly begins to take shape.
+
+## 🚀 **What's Next: Implementation Phase**
+
+The Implementation phase will guide you through executing each task step-by-step, turning your roadmap into actionable results. Here's what you can expect:
+
+### **Individual Task Guidance**
+- Each task presented with detailed descriptions and clear purposes
+- Multiple decision options for informed decision-making
+- Mentor insights with research-backed guidance tailored to each step
+
+### **Flexible Navigation & Support**
+- Tasks presented one at a time with ability to revisit via navigation menu
+- Interactive commands: "Help", "Kickstart", and "Who do I contact?"
+- Dynamic prompts and inline notifications for real-time feedback
+
+### **Angel's Implementation Assistance**
+Throughout implementation, I can help you with:
+- Reviewing and drafting contracts and legal documents
+- Completing NDAs and other business documentation
+- Analysis and research for business decisions
+- Creating pitch decks and presentation materials
+- Connecting you with local service providers
+
+### **Service Provider Integration**
+- Provider tables with credible local service providers for each step
+- Local providers clearly marked for your convenience
+- Complete with descriptive information and key considerations
+
+### **Progress Tracking**
+- Visual progress bars for overall and per-task completion
+- Real-time feedback and suggestions as you complete each task
+- Completion declaration reminders with documentation uploads
+
+---
+
+## ⚠️ **Important Implementation Notes**
+
+✅ **Research-Backed**: Every recommendation is grounded in deep research and designed to build your dream business
+✅ **Real-Time Support**: You'll receive immediate feedback and suggestions as you complete each task
+✅ **Documentation**: Remember to declare task completions and upload relevant documentation
+✅ **Progress Tracking**: Progress bars will track your completion throughout the implementation phase
+
+---
+
+## 🎉 **Ready to Begin Implementation?**
+
+Your roadmap is complete and ready for execution. The implementation phase will transform your plans into tangible results, guiding you through each step with expert support and local resources.
+
+**Let's start building your business!** When you're ready, I'll guide you through the first implementation task with detailed instructions, multiple options, and all the support you need to succeed.
+
+*This implementation process is tailored specifically to your "{business_name}" business in the {industry} industry, located in {location}. Every recommendation is designed to help you build the business of your dreams.*
+"""
+    
+    return {
+        "reply": transition_message,
+        "transition_phase": "ROADMAP_TO_IMPLEMENTATION_TRANSITION",
+        "roadmap_content": "Ready for implementation transition"
+    }
+
+async def generate_detailed_roadmap(session_data, history):
+    """Generate detailed roadmap with RAG-powered research"""
+    
+    # Extract business context from session data and history
+    business_name = session_data.get('business_name', 'Your Business')
+    industry = session_data.get('industry', 'general business')
+    location = session_data.get('location', 'United States')
+    business_type = session_data.get('business_type', 'startup')
+    
+    # Create comprehensive roadmap prompt with RAG research
+    roadmap_prompt = f"""
+    Generate a comprehensive, research-backed launch roadmap for "{business_name}" - a {business_type} in the {industry} industry located in {location}.
+    
+    Use the following business context from the completed business plan:
+    - Business Name: {business_name}
+    - Industry: {industry}
+    - Location: {location}
+    - Business Type: {business_type}
+    
+    Create a detailed roadmap with the following phases. IMPORTANT: Format the response as plain text without any markdown formatting, asterisks, or special characters. Use simple headings and bullet points.
+    
+    Phase 1: Legal Formation & Compliance
+    - Business structure selection (LLC, Corporation, Partnership, etc.)
+    - Business registration and licensing requirements
+    - Tax ID (EIN) application
+    - Required permits and licenses
+    - Insurance requirements
+    - Compliance with local, state, and federal regulations
+    
+    Phase 2: Financial Planning & Setup
+    - Business bank account setup
+    - Accounting system implementation
+    - Budget planning and cash flow management
+    - Funding strategy execution
+    - Financial tracking and reporting systems
+    - Tax planning and preparation
+    
+    Phase 3: Product & Operations Development
+    - Supply chain setup and vendor relationships
+    - Equipment and technology procurement
+    - Operational processes and workflows
+    - Quality control systems
+    - Inventory management
+    - Production or service delivery setup
+    
+    Phase 4: Marketing & Sales Strategy
+    - Brand development and positioning
+    - Marketing strategy implementation
+    - Sales process setup
+    - Customer acquisition channels
+    - Digital presence (website, social media)
+    - Customer relationship management
+    
+    Phase 5: Full Launch & Scaling
+    - Go-to-market strategy execution
+    - Team building and hiring
+    - Performance monitoring and analytics
+    - Growth and scaling strategies
+    - Customer feedback and iteration
+    - Long-term sustainability planning
+    
+    For each phase, provide:
+    - Specific Tasks: Detailed, actionable steps
+    - Timeline: Realistic time estimates
+    - Resources Needed: Required tools, services, and expertise
+    - Success Metrics: How to measure progress
+    - Decision Points: Multiple options where applicable
+    - Local Resources: Service providers and resources specific to {location}
+    - Potential Challenges: Common obstacles and solutions
+    
+    Make the roadmap practical, detailed, and tailored to the specific business context. Include specific examples and actionable recommendations.
+    
+    Format the response as clean, readable text without any markdown syntax, asterisks, or special formatting characters.
+    """
+    
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": roadmap_prompt}],
+            temperature=0.6,
+            max_tokens=3000
+        )
+        
+        # Clean any remaining markdown formatting from the response
+        roadmap_content = response.choices[0].message.content
+        
+        # Remove markdown formatting
+        import re
+        # Remove headers (## **text**)
+        roadmap_content = re.sub(r'#{1,6}\s*\*+([^*]+)\*+', r'\1', roadmap_content)
+        # Remove bold formatting (**text**)
+        roadmap_content = re.sub(r'\*+([^*]+)\*+', r'\1', roadmap_content)
+        # Remove horizontal rules (---)
+        roadmap_content = re.sub(r'^[-=]{3,}$', '', roadmap_content, flags=re.MULTILINE)
+        # Clean up extra whitespace
+        roadmap_content = re.sub(r'\n{3,}', '\n\n', roadmap_content)
+        
+        return roadmap_content.strip()
+    except Exception as e:
+        print(f"Error generating detailed roadmap: {e}")
+        return "Roadmap generation in progress..."

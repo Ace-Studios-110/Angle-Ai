@@ -1,10 +1,11 @@
 interface AcceptModifyButtonsProps {
   onAccept: () => void;
-  onModify: () => void;
+  onModify: (currentText: string) => void;
   disabled?: boolean;
+  currentText?: string;
 }
 
-export default function AcceptModifyButtons({ onAccept, onModify, disabled = false }: AcceptModifyButtonsProps) {
+export default function AcceptModifyButtons({ onAccept, onModify, disabled = false, currentText = "" }: AcceptModifyButtonsProps) {
   return (
     <div className="mt-4 flex justify-center gap-3">
       <button
@@ -18,7 +19,7 @@ export default function AcceptModifyButtons({ onAccept, onModify, disabled = fal
         Accept
       </button>
       <button
-        onClick={onModify}
+        onClick={() => onModify(currentText)}
         disabled={disabled}
         className="px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2"
       >

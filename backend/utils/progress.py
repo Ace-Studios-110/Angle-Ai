@@ -20,7 +20,10 @@ def smart_trim_history(history_list, max_lines=150):
 TOTALS_BY_PHASE = {
     "KYC": 20,
     "BUSINESS_PLAN": 46,
+    "PLAN_TO_ROADMAP_TRANSITION": 46,
     "ROADMAP": 1,
+    "ROADMAP_GENERATED": 1,
+    "ROADMAP_TO_IMPLEMENTATION_TRANSITION": 1,
     "IMPLEMENTATION": 10
 }
 
@@ -34,7 +37,7 @@ def calculate_phase_progress(current_phase: str, answered_count: int, current_ta
     print(f"  - answered_count: {answered_count}")
     print(f"  - current_tag: {current_tag}")
     
-    phase_order = ["KYC", "BUSINESS_PLAN", "ROADMAP", "IMPLEMENTATION"]
+    phase_order = ["KYC", "BUSINESS_PLAN", "ROADMAP", "ROADMAP_GENERATED", "ROADMAP_TO_IMPLEMENTATION_TRANSITION", "IMPLEMENTATION"]
     
     # Always use the current tag to determine the exact question number
     if current_tag and current_tag.startswith(current_phase + "."):

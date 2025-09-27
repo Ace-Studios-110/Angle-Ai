@@ -18,6 +18,10 @@ import QuestionNavigator from "../../components/QuestionNavigator";
 import SmartInput from "../../components/SmartInput";
 import AcceptModifyButtons from "../../components/AcceptModifyButtons";
 import WebSearchIndicator from "../../components/WebSearchIndicator";
+import PlanToRoadmapTransition from "../../components/PlanToRoadmapTransition";
+import ModifyModal from "../../components/ModifyModal";
+import RoadmapDisplay from "../../components/RoadmapDisplay";
+import RoadmapToImplementationTransition from "../../components/RoadmapToImplementationTransition";
 
 interface ConversationPair {
   question: string;
@@ -25,11 +29,13 @@ interface ConversationPair {
 }
 
 interface ProgressState {
-  phase: "KYC" | "BUSINESS_PLAN" | "ROADMAP" | "IMPLEMENTATION";
+  phase: "KYC" | "BUSINESS_PLAN" | "PLAN_TO_ROADMAP_TRANSITION" | "ROADMAP" | "ROADMAP_GENERATED" | "ROADMAP_TO_IMPLEMENTATION_TRANSITION" | "IMPLEMENTATION";
   answered: number;
   total: number;
   percent: number;
 }
+
+// Updated to include PLAN_TO_ROADMAP_TRANSITION phase
 
 const QUESTION_COUNTS = {
   KYC: 20,
@@ -96,6 +102,25 @@ export default function ChatPage() {
     query: undefined,
     completed: false
   });
+  const [transitionData, setTransitionData] = useState<{
+    businessPlanSummary: string;
+    transitionPhase: string;
+  } | null>(null);
+  const [modifyModal, setModifyModal] = useState<{
+    isOpen: boolean;
+    currentText: string;
+  }>({
+    isOpen: false,
+    currentText: ""
+  });
+  const [roadmapData, setRoadmapData] = useState<{
+    roadmapContent: string;
+    isGenerated: boolean;
+  } | null>(null);
+  const [roadmapToImplementationTransition, setRoadmapToImplementationTransition] = useState<{
+    roadmapContent: string;
+    isActive: boolean;
+  } | null>(null);
 
   // Function to detect if the current message is a verification request
   const isVerificationMessage = (message: string): boolean => {
@@ -143,12 +168,100 @@ export default function ChatPage() {
   };
 
   // Handle Modify button click
-  const handleModify = () => {
+  const handleModify = (currentText: string) => {
+    setModifyModal({
+      isOpen: true,
+      currentText: currentText
+    });
+  };
+
+  // Handle saving modified text
+  const handleModifySave = async (modifiedText: string) => {
+    setModifyModal(prev => ({ ...prev, isOpen: false }));
     setShowVerificationButtons(false);
-    // The user can now type their modifications in the input field
-    setCurrentInput("I'd like to modify: ");
-    if (inputRef.current) {
-      inputRef.current.focus();
+    
+    try {
+      setLoading(true);
+      await handleNext(modifiedText);
+    } catch (error) {
+      console.error("Error sending modified text:", error);
+      toast.error("Failed to send modifications. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle starting implementation (triggers roadmap to implementation transition)
+  const handleStartImplementation = async () => {
+    try {
+      setLoading(true);
+      toast.info("Preparing implementation transition...");
+      
+      // Call the roadmap to implementation transition endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/angel/sessions/${sessionId}/roadmap-to-implementation-transition`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Implementation transition prepared!");
+        setRoadmapData(null);
+        setProgress(data.result.progress);
+        
+        // Set the roadmap to implementation transition
+        setRoadmapToImplementationTransition({
+          roadmapContent: data.result.reply,
+          isActive: true
+        });
+      } else {
+        toast.error(data.message || "Failed to prepare implementation transition");
+      }
+    } catch (error) {
+      console.error("Error preparing implementation transition:", error);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle actual implementation start (from transition screen)
+  const handleActualStartImplementation = async () => {
+    try {
+      setLoading(true);
+      toast.info("Starting implementation phase...");
+      
+      // Call the start implementation endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/angel/sessions/${sessionId}/start-implementation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Implementation phase activated!");
+        setRoadmapToImplementationTransition(null);
+        setProgress(data.result.progress);
+        
+        // Set the first implementation question
+        const formatted = formatAngelMessage(data.result.reply);
+        setCurrentQuestion(formatted);
+      } else {
+        toast.error(data.message || "Failed to start implementation");
+      }
+    } catch (error) {
+      console.error("Error starting implementation:", error);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
   const [roadmapState, setRoadmapState] = useState({
@@ -259,7 +372,7 @@ export default function ChatPage() {
 
     try {
       const {
-        result: { reply, progress, web_search_status, immediate_response },
+        result: { reply, progress, web_search_status, immediate_response, transition_phase, business_plan_summary },
       } = await fetchQuestion(input, sessionId!);
       console.log("📥 Question API Response:", {
         input: input,
@@ -267,8 +380,31 @@ export default function ChatPage() {
         progress: progress,
         sessionId: sessionId,
         web_search_status: web_search_status,
-        immediate_response: immediate_response
+        immediate_response: immediate_response,
+        transition_phase: transition_phase,
+        business_plan_summary: business_plan_summary ? "Present" : "None"
       });
+      
+      // Handle transition phases
+      if (transition_phase === "PLAN_TO_ROADMAP") {
+        setTransitionData({
+          businessPlanSummary: business_plan_summary || "",
+          transitionPhase: transition_phase
+        });
+        setProgress(progress);
+        return;
+      }
+      
+      // Handle roadmap generation
+      if (transition_phase === "ROADMAP_GENERATED") {
+        setRoadmapData({
+          roadmapContent: reply,
+          isGenerated: true
+        });
+        setProgress(progress);
+        return;
+      }
+      
       const formatted = formatAngelMessage(reply);
       setCurrentQuestion(formatted);
       setProgress(progress);
@@ -346,6 +482,12 @@ export default function ChatPage() {
     toast.info("Business Plan editing mode activated. You can now modify your responses.");
   };
 
+  const handleEditRoadmap = () => {
+    // Close the roadmap modal and allow editing
+    setRoadmapState(prev => ({ ...prev, showModal: false }));
+    toast.info("Roadmap editing mode activated. You can now modify your responses.");
+  };
+
   const handleUploadPlan = async (file: File) => {
     try {
       toast.info(`Uploading ${file.name}...`);
@@ -376,6 +518,76 @@ export default function ChatPage() {
     }
   };
 
+  const handleApprovePlan = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/angel/sessions/${sessionId}/transition-decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}`
+        },
+        body: JSON.stringify({ decision: 'approve' })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Plan approved! Generating roadmap...");
+        setTransitionData(null);
+        setProgress(data.result.progress);
+        
+        // Navigate to roadmap phase
+        if (data.result.roadmap) {
+          setRoadmapData({
+            roadmapContent: data.result.roadmap,
+            isGenerated: true
+          });
+          console.log("Roadmap generated:", data.result.roadmap);
+        }
+      } else {
+        toast.error(data.message || "Failed to approve plan");
+      }
+    } catch (error) {
+      console.error("Failed to approve plan:", error);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRevisitPlan = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/angel/sessions/${sessionId}/transition-decision`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}`
+        },
+        body: JSON.stringify({ decision: 'revisit' })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Plan review mode activated");
+        setTransitionData(null);
+        setProgress(data.result.progress);
+        
+        // Refresh to get the first business plan question
+        await fetchQuestion("", sessionId!);
+      } else {
+        toast.error(data.message || "Failed to activate review mode");
+      }
+    } catch (error) {
+      console.error("Failed to revisit plan:", error);
+      toast.error("Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Use backend progress data directly to avoid calculation mismatches
   const currentStep = progress.answered || 1;
   const total = progress.total || QUESTION_COUNTS[progress.phase as keyof typeof QUESTION_COUNTS];
@@ -398,6 +610,40 @@ export default function ChatPage() {
 
   if (loading && currentQuestion === "")
     return <VentureLoader title="Loading your venture" />;
+
+  // Show transition component if in transition phase
+  if (transitionData && transitionData.transitionPhase === "PLAN_TO_ROADMAP") {
+    return (
+      <PlanToRoadmapTransition
+        businessPlanSummary={transitionData.businessPlanSummary}
+        onApprove={handleApprovePlan}
+        onRevisit={handleRevisitPlan}
+        loading={loading}
+      />
+    );
+  }
+
+  // Show roadmap display if roadmap is generated
+  if (roadmapData && roadmapData.isGenerated) {
+    return (
+      <RoadmapDisplay
+        roadmapContent={roadmapData.roadmapContent}
+        onStartImplementation={handleStartImplementation}
+        loading={loading}
+      />
+    );
+  }
+
+  // Show roadmap to implementation transition
+  if (roadmapToImplementationTransition && roadmapToImplementationTransition.isActive) {
+    return (
+      <RoadmapToImplementationTransition
+        roadmapContent={roadmapToImplementationTransition.roadmapContent}
+        onStartImplementation={handleActualStartImplementation}
+        loading={loading}
+      />
+    );
+  }
 
   // Transform history into questions array
   const questions = history.map((pair, index) => ({
@@ -562,6 +808,7 @@ export default function ChatPage() {
             plan={roadmapState.plan}
             loading={roadmapState.loading}
             error={roadmapState.error}
+            onEditRoadmap={handleEditRoadmap}
           />
         </div>
 
@@ -660,6 +907,7 @@ export default function ChatPage() {
                   onAccept={handleAccept}
                   onModify={handleModify}
                   disabled={loading}
+                  currentText={currentQuestion}
                 />
               </div>
             )}
@@ -933,6 +1181,15 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Modify Modal */}
+      <ModifyModal
+        isOpen={modifyModal.isOpen}
+        onClose={() => setModifyModal(prev => ({ ...prev, isOpen: false }))}
+        currentText={modifyModal.currentText}
+        onSave={handleModifySave}
+        loading={loading}
+      />
     </div>
   );
 }

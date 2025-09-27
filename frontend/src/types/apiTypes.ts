@@ -40,7 +40,7 @@ export interface AngelResponse {
     result: {
         reply: string;
         progress: {
-            phase: 'KYC' | 'BUSINESS_PLAN' | 'ROADMAP' | 'IMPLEMENTATION',
+            phase: 'KYC' | 'BUSINESS_PLAN' | 'PLAN_TO_ROADMAP_TRANSITION' | 'ROADMAP' | 'ROADMAP_GENERATED' | 'ROADMAP_TO_IMPLEMENTATION_TRANSITION' | 'IMPLEMENTATION',
             answered: number
             total: number
             percent: number
@@ -51,6 +51,8 @@ export interface AngelResponse {
             completed?: boolean;
         };
         immediate_response?: string;
+        transition_phase?: string;
+        business_plan_summary?: string;
     };
 }
 

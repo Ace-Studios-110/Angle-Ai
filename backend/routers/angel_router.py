@@ -3,7 +3,7 @@ from schemas.angel_schemas import ChatRequestSchema, CreateSessionSchema
 from services.session_service import create_session, list_sessions, get_session, patch_session
 from services.chat_service import fetch_chat_history, save_chat_message, fetch_phase_chat_history
 from services.generate_plan_service import generate_full_business_plan, generate_full_roadmap_plan
-from services.angel_service import get_angel_reply
+from services.angel_service import get_angel_reply, handle_roadmap_generation, handle_roadmap_to_implementation_transition
 from utils.progress import parse_tag, TOTALS_BY_PHASE, calculate_phase_progress, smart_trim_history
 from middlewares.auth import verify_auth_token
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,21 +46,66 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
     await save_chat_message(session_id, user_id, "user", payload.content)
 
     # Get AI reply
-    angel_response = await get_angel_reply({"role": "user", "content": payload.content}, history)
+    angel_response = await get_angel_reply({"role": "user", "content": payload.content}, history, session)
     
     # Handle new return format
     if isinstance(angel_response, dict):
         assistant_reply = angel_response["reply"]
         web_search_status = angel_response.get("web_search_status", {"is_searching": False, "query": None})
         immediate_response = angel_response.get("immediate_response", None)
+        transition_phase = angel_response.get("transition_phase", None)
+        business_plan_summary = angel_response.get("business_plan_summary", None)
+        session_update = angel_response.get("update_session", None)
     else:
         # Backward compatibility
         assistant_reply = angel_response
         web_search_status = {"is_searching": False, "query": None}
         immediate_response = None
+        transition_phase = None
+        business_plan_summary = None
+        session_update = None
 
     # Save assistant reply
     await save_chat_message(session_id, user_id, "assistant", assistant_reply)
+
+    # Handle session updates (e.g., from Accept responses)
+    if session_update:
+        session.update(session_update)
+        await patch_session(session_id, session_update)
+
+    # Handle transition phases
+    if transition_phase == "PLAN_TO_ROADMAP":
+        # Update session to transition phase
+        session["current_phase"] = "PLAN_TO_ROADMAP_TRANSITION"
+        # Store transition data in session memory (not database)
+        session["transition_data"] = {
+            "business_plan_summary": business_plan_summary,
+            "transition_type": "PLAN_TO_ROADMAP"
+        }
+        await patch_session(session_id, {
+            "current_phase": session["current_phase"]
+        })
+        
+        # Return transition response without normal tag processing
+        return {
+            "success": True,
+            "message": "Business plan completed - transition to roadmap",
+            "result": {
+                "reply": assistant_reply,
+                "progress": {
+                    "phase": "PLAN_TO_ROADMAP_TRANSITION",
+                    "answered": 46,
+                    "total": 46,
+                    "percent": 100
+                },
+                "session_id": session_id,
+                "web_search_status": web_search_status,
+                "immediate_response": immediate_response,
+                "transition_phase": transition_phase,
+                "business_plan_summary": business_plan_summary,
+                "transition_data": session["transition_data"]
+            }
+        }
 
     # Tag handling - Only increment when moving to a genuinely new question
     last_tag = session.get("asked_q")
@@ -412,6 +457,161 @@ async def get_phase_chat_history(
         "success": True,
         "result": messages,
         "has_more": len(messages) == limit
+    }
+
+@router.post("/sessions/{session_id}/transition-decision")
+async def handle_transition_decision(session_id: str, request: Request, payload: dict):
+    """Handle Approve/Revisit decisions for Plan to Roadmap transition"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    decision = payload.get("decision")  # "approve" or "revisit"
+    
+    if decision == "approve":
+        # Transition to Roadmap phase
+        session["current_phase"] = "ROADMAP"
+        session["asked_q"] = "ROADMAP.01"
+        session["answered_count"] = 0
+        
+        await patch_session(session_id, {
+            "current_phase": session["current_phase"],
+            "asked_q": session["asked_q"],
+            "answered_count": session["answered_count"]
+        })
+        
+        # Generate roadmap
+        history = await fetch_chat_history(session_id)
+        roadmap_response = await handle_roadmap_generation(session, history)
+        
+        return {
+            "success": True,
+            "message": "Plan approved - transitioning to roadmap",
+            "result": {
+                "action": "transition_to_roadmap",
+                "roadmap": roadmap_response["roadmap_content"],
+                "progress": {
+                    "phase": "ROADMAP",
+                    "answered": 0,
+                    "total": 1,
+                    "percent": 0
+                },
+                "transition_phase": roadmap_response["transition_phase"]
+            }
+        }
+    
+    elif decision == "revisit":
+        # Return to Business Plan phase for modifications
+        session["current_phase"] = "BUSINESS_PLAN"
+        # Keep the current progress instead of resetting to 01
+        # This allows user to continue from where they left off
+        current_asked_q = session.get("asked_q", "BUSINESS_PLAN.46")
+        if not current_asked_q.startswith("BUSINESS_PLAN."):
+            current_asked_q = "BUSINESS_PLAN.46"
+        
+        await patch_session(session_id, {
+            "current_phase": session["current_phase"],
+            "asked_q": current_asked_q
+        })
+        
+        return {
+            "success": True,
+            "message": "Plan review mode activated",
+            "result": {
+                "action": "revisit_plan",
+                "progress": {
+                    "phase": "BUSINESS_PLAN",
+                    "answered": session.get("answered_count", 46),
+                    "total": 46,
+                    "percent": 100
+                }
+            }
+        }
+    
+    else:
+        return {
+            "success": False,
+            "message": "Invalid decision. Please choose 'approve' or 'revisit'"
+        }
+
+@router.post("/sessions/{session_id}/start-implementation")
+async def start_implementation(session_id: str, request: Request):
+    """Handle transition from Roadmap to Implementation phase"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    # Transition to Implementation phase
+    session["current_phase"] = "IMPLEMENTATION"
+    session["asked_q"] = "IMPLEMENTATION.01"
+    session["answered_count"] = 0
+    
+    await patch_session(session_id, {
+        "current_phase": session["current_phase"],
+        "asked_q": session["asked_q"],
+        "answered_count": session["answered_count"]
+    })
+    
+    # Get the first implementation question
+    history = await fetch_chat_history(session_id)
+    
+    # Generate implementation transition message and first question
+    implementation_prompt = "The user has approved their roadmap and wants to start the implementation phase. Please provide a motivational transition message and present the first implementation task/question."
+    
+    session_context = {
+        "current_phase": "IMPLEMENTATION",
+        "industry": session.get("industry"),
+        "location": session.get("location")
+    }
+    
+    implementation_response = await get_angel_reply(
+        {"role": "user", "content": implementation_prompt},
+        history,
+        session_context
+    )
+    
+    # Save the implementation transition message
+    await save_chat_message(session_id, user_id, "assistant", implementation_response)
+    
+    return {
+        "success": True,
+        "message": "Implementation phase started successfully",
+        "result": {
+            "action": "start_implementation",
+            "reply": implementation_response,
+            "progress": {
+                "phase": "IMPLEMENTATION",
+                "answered": 0,
+                "total": 10,
+                "percent": 0
+            }
+        }
+    }
+
+@router.post("/sessions/{session_id}/roadmap-to-implementation-transition")
+async def roadmap_to_implementation_transition(session_id: str, request: Request):
+    """Handle transition from Roadmap to Implementation phase"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    # Generate transition message
+    history = await fetch_chat_history(session_id)
+    transition_response = await handle_roadmap_to_implementation_transition(session, history)
+    
+    return {
+        "success": True,
+        "message": "Roadmap to Implementation transition prepared",
+        "result": {
+            "action": "roadmap_to_implementation_transition",
+            "reply": transition_response["reply"],
+            "progress": {
+                "phase": "ROADMAP_TO_IMPLEMENTATION_TRANSITION",
+                "answered": 1,
+                "total": 1,
+                "percent": 100
+            },
+            "transition_phase": transition_response["transition_phase"]
+        }
     }
 
 @router.post("/sessions/{session_id}/upload-business-plan")
