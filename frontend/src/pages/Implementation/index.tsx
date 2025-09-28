@@ -6,6 +6,18 @@ import TaskCompletionModal from '../../components/TaskCompletionModal';
 import ServiceProviderModal from '../../components/ServiceProviderModal';
 import KickstartModal from '../../components/KickstartModal';
 import HelpModal from '../../components/HelpModal';
+import ComprehensiveSupport from '../../components/ComprehensiveSupport';
+import { 
+  Target, 
+  Users, 
+  Lightbulb,
+  Rocket,
+  Phone,
+  Settings,
+  Megaphone,
+  Shield,
+  DollarSign
+} from 'lucide-react';
 
 interface ImplementationTask {
   id: string;
@@ -47,12 +59,13 @@ const Implementation: React.FC<ImplementationProps> = ({
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [progress, setProgress] = useState<ImplementationProgress>({
     completed: 0,
-    total: 10,
+    total: 25,
     percent: 0,
     phases_completed: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'task' | 'support'>('task');
   
   // Modal states
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -268,6 +281,40 @@ const Implementation: React.FC<ImplementationProps> = ({
     }
   };
 
+  const getPhaseIcon = (phase: string) => {
+    switch (phase.toLowerCase()) {
+      case 'legal_formation':
+        return <Shield className="h-5 w-5 text-blue-600" />;
+      case 'financial_setup':
+        return <DollarSign className="h-5 w-5 text-green-600" />;
+      case 'operations_development':
+        return <Settings className="h-5 w-5 text-purple-600" />;
+      case 'marketing_sales':
+        return <Megaphone className="h-5 w-5 text-orange-600" />;
+      case 'launch_scaling':
+        return <Rocket className="h-5 w-5 text-red-600" />;
+      default:
+        return <Target className="h-5 w-5 text-gray-600" />;
+    }
+  };
+
+  const getPhaseName = (phase: string) => {
+    switch (phase.toLowerCase()) {
+      case 'legal_formation':
+        return 'Legal Formation & Compliance';
+      case 'financial_setup':
+        return 'Financial Planning & Setup';
+      case 'operations_development':
+        return 'Product & Operations Development';
+      case 'marketing_sales':
+        return 'Marketing & Sales Strategy';
+      case 'launch_scaling':
+        return 'Full Launch & Scaling';
+      default:
+        return phase.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50 flex items-center justify-center">
@@ -324,6 +371,12 @@ const Implementation: React.FC<ImplementationProps> = ({
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Implementation Phase</h1>
               <p className="text-gray-600 mt-1">Turning your roadmap into actionable results</p>
+              <div className="flex items-center gap-2 mt-2">
+                {getPhaseIcon(currentTask.phase_name)}
+                <span className="text-sm font-medium text-gray-700">
+                  {getPhaseName(currentTask.phase_name)}
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <ProgressCircle
@@ -341,92 +394,149 @@ const Implementation: React.FC<ImplementationProps> = ({
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Current Task */}
-          <div className="lg:col-span-2">
-            <TaskCard
-              task={currentTask}
-              onComplete={() => setShowCompletionModal(true)}
-              onGetServiceProviders={handleGetServiceProviders}
-              onGetKickstart={handleGetKickstart}
-              onGetHelp={handleGetHelp}
-              onUploadDocument={handleUploadDocument}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Progress Overview */}
-            <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress Overview</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tasks Completed</span>
-                  <span className="font-medium">{completedTasks.length}/{progress.total}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Phases Completed</span>
-                  <span className="font-medium">{progress.phases_completed}/5</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-teal-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${progress.percent}%` }}
-                  ></div>
-                </div>
+      {/* Tab Navigation */}
+      <div className="bg-white/90 backdrop-blur-xl border-b border-white/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('task')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'task'
+                  ? 'border-teal-500 text-teal-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Current Task
               </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={handleGetHelp}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  <span>💡</span>
-                  Get Help
-                </button>
-                <button
-                  onClick={handleGetKickstart}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  <span>🚀</span>
-                  Kickstart Plan
-                </button>
-                <button
-                  onClick={handleGetServiceProviders}
-                  className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  <span>📞</span>
-                  Find Providers
-                </button>
+            </button>
+            <button
+              onClick={() => setActiveTab('support')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'support'
+                  ? 'border-teal-500 text-teal-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Comprehensive Support
               </div>
-            </div>
-
-            {/* Business Context */}
-            <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Context</h3>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-gray-600">Business:</span>
-                  <span className="font-medium ml-2">{businessContext.business_name || currentTask?.business_context.business_name}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Industry:</span>
-                  <span className="font-medium ml-2">{businessContext.industry || currentTask?.business_context.industry}</span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Location:</span>
-                  <span className="font-medium ml-2">{businessContext.location || currentTask?.business_context.location}</span>
-                </div>
-              </div>
-            </div>
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === 'task' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Current Task */}
+            <div className="lg:col-span-2">
+              <TaskCard
+                task={currentTask}
+                onComplete={() => setShowCompletionModal(true)}
+                onGetServiceProviders={handleGetServiceProviders}
+                onGetKickstart={handleGetKickstart}
+                onGetHelp={handleGetHelp}
+                onUploadDocument={handleUploadDocument}
+              />
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Progress Overview */}
+              <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress Overview</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tasks Completed</span>
+                    <span className="font-medium">{completedTasks.length}/{progress.total}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Phases Completed</span>
+                    <span className="font-medium">{progress.phases_completed}/5</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${progress.percent}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={handleGetHelp}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Lightbulb className="h-4 w-4" />
+                    Get Help
+                  </button>
+                  <button
+                    onClick={handleGetKickstart}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Rocket className="h-4 w-4" />
+                    Kickstart Plan
+                  </button>
+                  <button
+                    onClick={handleGetServiceProviders}
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Find Providers
+                  </button>
+                </div>
+              </div>
+
+              {/* Business Context */}
+              <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Context</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-gray-600">Business:</span>
+                    <span className="font-medium ml-2">{businessContext.business_name || currentTask?.business_context.business_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Industry:</span>
+                    <span className="font-medium ml-2">{businessContext.industry || currentTask?.business_context.industry}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Location:</span>
+                    <span className="font-medium ml-2">{businessContext.location || currentTask?.business_context.location}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ComprehensiveSupport
+            taskContext={currentTask.title}
+            businessContext={businessContext}
+            onProviderSelect={(provider) => {
+              console.log('Provider selected:', provider);
+              toast.success('Service provider selected!');
+            }}
+            onResearchComplete={(result) => {
+              console.log('Research completed:', result);
+              toast.success('Research completed successfully!');
+            }}
+            onAgentResponse={(agent, response) => {
+              console.log('Agent response:', agent, response);
+              toast.success('Agent guidance received!');
+            }}
+            onCommandComplete={(response) => {
+              console.log('Command completed:', response);
+              toast.success('Command executed successfully!');
+            }}
+          />
+        )}
       </div>
 
       {/* Modals */}

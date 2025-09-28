@@ -787,7 +787,7 @@ Do NOT include question numbers, progress percentages, or step counts in your re
                     # Return the response with session update info
                     return {
                         "reply": response.choices[0].message.content,
-                        "update_session": {
+                        "patch_session": {
                             "asked_q": next_tag,
                             "answered_count": session_data.get("answered_count", 0) + 1
                         }

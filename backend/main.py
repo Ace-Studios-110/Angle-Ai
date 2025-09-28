@@ -12,6 +12,11 @@ from routers.auth_router import auth_router
 from routers.angel_router import router as angel_router
 from routers.implementation_router import router as implementation_router
 from routers.roadmap_edit_router import router as roadmap_edit_router
+from routers.roadmap_to_implementation_router import router as roadmap_to_implementation_router
+from routers.provider_router import router as provider_router
+from routers.specialized_agents_router import router as specialized_agents_router
+from routers.implementation_router import router as implementation_router
+from routers.appendices_router import router as appendices_router
 
 # Middlewares
 from middlewares.auth import verify_auth_token
@@ -57,6 +62,10 @@ app.include_router(auth_router, prefix="/auth")
 app.include_router(angel_router, prefix="/angel")
 app.include_router(implementation_router, prefix="/implementation")
 app.include_router(roadmap_edit_router, prefix="/roadmap")
+app.include_router(roadmap_to_implementation_router, prefix="/roadmap-to-implementation")
+app.include_router(provider_router, prefix="/providers")
+app.include_router(specialized_agents_router, prefix="/specialized-agents")
+app.include_router(appendices_router, prefix="/appendices")
 
 # ✅ Global Exception Handlers
 app.add_exception_handler(AuthApiError, supabase_auth_exception_handler)

@@ -1,5 +1,22 @@
-import React, { useState } from 'react';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from 'react';
+import { 
+  Loader2, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle, 
+  Lightbulb, 
+  Rocket, 
+  Phone, 
+  FileText,
+  Target,
+  Building2,
+  TrendingUp,
+  Shield,
+  DollarSign,
+  Settings,
+  Megaphone
+} from 'lucide-react';
+import httpClient from '../api/httpClient';
 
 interface ImplementationTask {
   id: string;
@@ -28,7 +45,7 @@ interface TaskCardProps {
   onUploadDocument: (file: File) => void;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({
+export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onComplete,
   onGetServiceProviders,
@@ -37,222 +54,364 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onUploadDocument
 }) => {
   const [selectedOption, setSelectedOption] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [dragActive, setDragActive] = useState(false);
+  const [completionNotes, setCompletionNotes] = useState<string>('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mentorInsights, setMentorInsights] = useState<string>('');
+  const [ragResearch, setRagResearch] = useState<any>(null);
+
+  useEffect(() => {
+    loadTaskInsights();
+  }, [task.id]);
+
+  const loadTaskInsights = async () => {
+    try {
+      const token = localStorage.getItem('sb_access_token');
+      if (!token) return;
+
+      // Load mentor insights and RAG research for this task
+      const response = await httpClient.post('/specialized-agents/agent-guidance', {
+        question: `Provide expert guidance for implementation task: ${task.title}`,
+        agent_type: 'comprehensive',
+        business_context: task.business_context
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if ((response.data as any).success) {
+        setMentorInsights((response.data as any).result.guidance || 'Expert guidance will be provided as you work through this task.');
+      }
+
+      // Load RAG research
+      const ragResponse = await httpClient.post('/specialized-agents/rag-research', {
+        query: `implementation task ${task.id} ${task.business_context.industry} ${task.business_context.location}`,
+        business_context: task.business_context,
+        research_depth: 'standard'
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if ((ragResponse.data as any).success) {
+        setRagResearch((ragResponse.data as any).result);
+      }
+    } catch (err) {
+      console.error('Error loading task insights:', err);
+    }
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setUploadedFile(file);
       onUploadDocument(file);
     }
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
+  const handleComplete = async () => {
+    if (!selectedOption && task.options.length > 0) {
+      setError('Please select an option before completing the task');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('sb_access_token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const completionData = {
+        selected_option: selectedOption,
+        completion_notes: completionNotes,
+        uploaded_file: uploadedFile?.name,
+        completed_at: new Date().toISOString()
+      };
+
+      const response = await httpClient.post(`/implementation/sessions/${task.id}/implementation/tasks/${task.id}/complete`, completionData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if ((response.data as any).success) {
+        onComplete();
+      } else {
+        setError((response.data as any).message || 'Failed to complete task');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to complete task');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      onUploadDocument(e.dataTransfer.files[0]);
+  const getPriorityIcon = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'medium':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
       case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 text-red-800';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-yellow-100 text-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-green-100 text-green-800';
     }
   };
 
-  const getPhaseColor = (phase: string) => {
+  const getPhaseIcon = (phase: string) => {
     switch (phase.toLowerCase()) {
-      case 'legal formation & compliance':
-        return 'bg-blue-500';
-      case 'financial planning & setup':
-        return 'bg-green-500';
-      case 'product & operations development':
-        return 'bg-purple-500';
-      case 'marketing & sales strategy':
-        return 'bg-orange-500';
-      case 'full launch & scaling':
-        return 'bg-teal-500';
+      case 'legal_formation':
+        return <Shield className="h-5 w-5 text-blue-600" />;
+      case 'financial_setup':
+        return <DollarSign className="h-5 w-5 text-green-600" />;
+      case 'operations_development':
+        return <Settings className="h-5 w-5 text-purple-600" />;
+      case 'marketing_sales':
+        return <Megaphone className="h-5 w-5 text-orange-600" />;
+      case 'launch_scaling':
+        return <Rocket className="h-5 w-5 text-red-600" />;
       default:
-        return 'bg-gray-500';
+        return <Target className="h-5 w-5 text-gray-600" />;
     }
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl shadow-sm overflow-hidden">
+    <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
       {/* Header */}
-      <div className="bg-gradient-to-r from-teal-500 to-blue-500 p-6 text-white">
-        <div className="flex items-center justify-between mb-2">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${getPhaseColor(task.phase_name)}`}></div>
-            <span className="text-sm font-medium opacity-90">{task.phase_name}</span>
+            {getPhaseIcon(task.phase_name)}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{task.title}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                  {getPriorityIcon(task.priority)}
+                  {task.priority} Priority
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <Clock className="h-3 w-3" />
+                  {task.estimated_time}
+                </span>
+              </div>
+            </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
-            {task.priority} Priority
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+            {task.phase_name.replace('_', ' ')}
           </span>
-        </div>
-        <h2 className="text-2xl font-bold mb-2">{task.title}</h2>
-        <div className="flex items-center gap-4 text-sm opacity-90">
-          <span>⏱️ {task.estimated_time}</span>
-          <span>🎯 {task.angel_actions.length} Angel Actions</span>
         </div>
       </div>
 
       {/* Content */}
       <div className="p-6 space-y-6">
-        {/* Description */}
+        {/* Task Description */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Task Description</h3>
-          <p className="text-gray-700 leading-relaxed">{task.description}</p>
+          <h3 className="font-semibold text-gray-900 mb-2">Task Description</h3>
+          <p className="text-gray-700">{task.description}</p>
         </div>
 
         {/* Purpose */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Why This Matters</h3>
-          <p className="text-gray-700 leading-relaxed">{task.purpose}</p>
+          <h3 className="font-semibold text-gray-900 mb-2">Purpose</h3>
+          <p className="text-gray-700">{task.purpose}</p>
         </div>
 
-        {/* Options */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Decision Options</h3>
-          <div className="space-y-2">
-            {task.options.map((option, index) => (
-              <label key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-                <input
-                  type="radio"
-                  name="option"
-                  value={option}
-                  checked={selectedOption === option}
-                  onChange={(e) => setSelectedOption(e.target.value)}
-                  className="w-4 h-4 text-teal-500 focus:ring-teal-500"
-                />
-                <span className="text-gray-700">{option}</span>
-              </label>
-            ))}
+        {/* Decision Options */}
+        {task.options.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Your Option</label>
+            <select 
+              value={selectedOption} 
+              onChange={(e) => setSelectedOption(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Choose an option...</option>
+              {task.options.map((option, index) => (
+                <option key={index} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        )}
 
         {/* Angel Actions */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">How Angel Can Help</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-600" />
+            Angel Can Help You With
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {task.angel_actions.map((action, index) => (
-              <div key={index} className="flex items-center gap-3 p-3 bg-teal-50 border border-teal-200 rounded-lg">
-                <span className="text-teal-500 text-lg">✨</span>
-                <span className="text-gray-700 text-sm">{action}</span>
+              <div key={index} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+                <CheckCircle className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-800">{action}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Notes */}
+        {/* Mentor Insights */}
+        {mentorInsights && (
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-yellow-600" />
+              Mentor Insights
+            </h3>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <p className="text-sm text-yellow-800 whitespace-pre-wrap">{mentorInsights}</p>
+            </div>
+          </div>
+        )}
+
+        {/* RAG Research */}
+        {ragResearch && (
+          <div>
+            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              Research-Backed Guidance
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                RAG-Powered
+              </span>
+            </h3>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-sm text-green-800 mb-2">
+                Sources consulted: {ragResearch.sources_consulted} authoritative sources
+              </p>
+              <p className="text-sm text-green-800 whitespace-pre-wrap">
+                {ragResearch.analysis}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Completion Notes */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Additional Notes</h3>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Completion Notes</label>
           <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add any additional notes or context for this task..."
-            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+            placeholder="Describe what you accomplished, decisions made, or any important details..."
+            value={completionNotes}
+            onChange={(e) => setCompletionNotes(e.target.value)}
             rows={3}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
         {/* Document Upload */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload Documents</h3>
-          <div
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-              dragActive
-                ? 'border-teal-500 bg-teal-50'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <div className="text-gray-500">
-              <svg className="mx-auto h-12 w-12 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p className="text-sm">
-                <span className="font-medium text-teal-600 hover:text-teal-500 cursor-pointer">
-                  Click to upload
-                </span>
-                {' '}or drag and drop
-              </p>
-              <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, JPEG, PNG up to 10MB</p>
-            </div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Upload Documentation</label>
+          <div className="mt-2">
             <input
               type="file"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload"
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={handleFileUpload}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
-            <label htmlFor="file-upload" className="sr-only">Upload file</label>
+            {uploadedFile && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                <FileText className="h-4 w-4" />
+                {uploadedFile.name}
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
-            onClick={onGetHelp}
-            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+            onClick={handleComplete}
+            disabled={loading || (task.options.length > 0 && !selectedOption)}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
           >
-            <span>💡</span>
-            Get Help
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Completing Task...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                Complete Task
+              </>
+            )}
           </button>
-          <button
-            onClick={onGetKickstart}
-            className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <span>🚀</span>
-            Kickstart Plan
-          </button>
-          <button
-            onClick={onGetServiceProviders}
-            className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <span>📞</span>
-            Find Providers
-          </button>
+
+          <div className="flex gap-2">
+            <button
+              onClick={onGetHelp}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Lightbulb className="h-4 w-4" />
+              Help
+            </button>
+
+            <button
+              onClick={onGetKickstart}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Rocket className="h-4 w-4" />
+              Kickstart
+            </button>
+
+            <button
+              onClick={onGetServiceProviders}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Phone className="h-4 w-4" />
+              Contact
+            </button>
+          </div>
         </div>
 
-        {/* Complete Task Button */}
+        {/* Business Context */}
         <div className="pt-4 border-t border-gray-200">
-          <button
-            onClick={onComplete}
-            disabled={!selectedOption}
-            className="w-full bg-teal-500 hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-          >
-            <span>✅</span>
-            Complete Task
-          </button>
-          {!selectedOption && (
-            <p className="text-sm text-gray-500 mt-2 text-center">
-              Please select a decision option to complete this task
-            </p>
-          )}
+          <h3 className="font-semibold text-gray-900 mb-2">Business Context</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Business:</span>
+              <span className="font-medium ml-2">{task.business_context.business_name}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Industry:</span>
+              <span className="font-medium ml-2">{task.business_context.industry}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Location:</span>
+              <span className="font-medium ml-2">{task.business_context.location}</span>
+            </div>
+            <div>
+              <span className="text-gray-600">Type:</span>
+              <span className="font-medium ml-2">{task.business_context.business_type}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -698,11 +698,21 @@ export default function ChatPage() {
 
   // Show roadmap to implementation transition
   if (roadmapToImplementationTransition && roadmapToImplementationTransition.isActive) {
+    // Create business context from session data
+    const businessContext = {
+      business_name: "Your Business", // This would come from session data
+      industry: "General Business", // This would come from session data
+      location: "United States", // This would come from session data
+      business_type: "Startup" // This would come from session data
+    };
+
     return (
       <RoadmapToImplementationTransition
         roadmapContent={roadmapToImplementationTransition.roadmapContent}
         onStartImplementation={handleActualStartImplementation}
         loading={loading}
+        sessionId={sessionId!}
+        businessContext={businessContext}
       />
     );
   }

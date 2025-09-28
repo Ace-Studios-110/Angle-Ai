@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, UploadFile, File
 from schemas.angel_schemas import ChatRequestSchema, CreateSessionSchema
 from services.session_service import create_session, list_sessions, get_session, patch_session
 from services.chat_service import fetch_chat_history, save_chat_message, fetch_phase_chat_history
-from services.generate_plan_service import generate_full_business_plan, generate_full_roadmap_plan
+from services.generate_plan_service import generate_full_business_plan, generate_full_roadmap_plan, generate_comprehensive_business_plan_summary, generate_implementation_insights, generate_service_provider_preview, generate_motivational_quote
 from services.angel_service import get_angel_reply, handle_roadmap_generation, handle_roadmap_to_implementation_transition
 from utils.progress import parse_tag, TOTALS_BY_PHASE, calculate_phase_progress, smart_trim_history
 from middlewares.auth import verify_auth_token
@@ -55,7 +55,7 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
         immediate_response = angel_response.get("immediate_response", None)
         transition_phase = angel_response.get("transition_phase", None)
         business_plan_summary = angel_response.get("business_plan_summary", None)
-        session_update = angel_response.get("update_session", None)
+        session_update = angel_response.get("patch_session", None)
     else:
         # Backward compatibility
         assistant_reply = angel_response
@@ -236,7 +236,7 @@ def get_phase_display_name(phase):
     }
     return phase_names.get(phase, phase)
 
-async def update_session_context_from_response(session_id, response_content, tag, session):
+async def patch_session_context_from_response(session_id, response_content, tag, session):
     """Extract and store key information from user responses"""
     
     # Extract key information based on KYC question
@@ -431,6 +431,28 @@ async def generate_business_plan(request: Request, session_id: str):
         "result": result,
     }
 
+@router.get("/sessions/{session_id}/business-plan-summary")
+async def get_business_plan_summary(request: Request, session_id: str):
+    """Generate comprehensive business plan summary for Plan to Roadmap Transition"""
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    history = await fetch_chat_history(session_id)
+    history_trimmed = smart_trim_history(history)
+    
+    try:
+        result = await generate_comprehensive_business_plan_summary(history_trimmed)
+        return {
+            "success": True,
+            "message": "Business plan summary generated successfully",
+            "result": result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error generating business plan summary: {str(e)}"
+    }
+
 @router.get("/sessions/{session_id}/roadmap-plan")
 async def generate_roadmap_plan(session_id: str, request: Request):
     history = await fetch_chat_history(session_id)
@@ -439,6 +461,151 @@ async def generate_roadmap_plan(session_id: str, request: Request):
     return {
         "success": True,
         "result": roadmap
+    }
+
+@router.get("/sessions/{session_id}/enhanced-roadmap")
+async def generate_enhanced_roadmap(session_id: str, request: Request):
+    """Generate enhanced roadmap with comprehensive summary, execution advice, and motivational elements"""
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    history = await fetch_chat_history(session_id)
+    history_trimmed = smart_trim_history(history)
+    
+    try:
+        # Generate the enhanced roadmap with all new features
+        roadmap_result = await generate_full_roadmap_plan(history_trimmed)
+        
+        # Add additional metadata for the enhanced UI
+        enhanced_result = {
+            **roadmap_result,
+            "enhanced_features": {
+                "research_foundation": True,
+                "planning_champion_award": True,
+                "execution_advice": True,
+                "motivational_elements": True,
+                "comprehensive_summary": True,
+                "success_statistics": True
+            },
+            "ui_metadata": {
+                "show_research_banner": True,
+                "show_achievement_section": True,
+                "show_execution_excellence": True,
+                "show_success_stats": True,
+                "enhanced_action_button": True
+            }
+        }
+        
+        return {
+            "success": True,
+            "message": "Enhanced roadmap generated successfully with comprehensive features",
+            "result": enhanced_result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error generating enhanced roadmap: {str(e)}"
+        }
+
+@router.post("/sessions/{session_id}/modify-roadmap")
+async def modify_roadmap(session_id: str, request: Request):
+    """Modify the roadmap content with user edits"""
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    try:
+        payload = await request.json()
+        modified_content = payload.get("modified_content", "")
+        
+        if not modified_content:
+            return {
+                "success": False,
+                "message": "No modified content provided"
+            }
+        
+        # Store the modified roadmap in the session
+        session["modified_roadmap"] = modified_content
+        session["roadmap_modified_at"] = datetime.now().isoformat()
+        await patch_session(session_id, session)
+        
+        return {
+            "success": True,
+            "message": "Roadmap modified successfully",
+            "modified_at": session["roadmap_modified_at"]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error modifying roadmap: {str(e)}"
+        }
+
+@router.get("/sessions/{session_id}/implementation-insights")
+async def get_implementation_insights(session_id: str, request: Request):
+    """Generate RAG-powered implementation insights for the transition phase"""
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    try:
+        # Extract business context from session
+        business_context = session.get("business_context", {})
+        industry = business_context.get("industry", "")
+        location = business_context.get("location", "")
+        business_type = business_context.get("business_type", "")
+        
+        # Generate implementation insights using RAG
+        insights = await generate_implementation_insights(industry, location, business_type)
+        
+        return {
+            "success": True,
+            "insights": insights
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error generating implementation insights: {str(e)}"
+        }
+
+@router.get("/sessions/{session_id}/service-provider-preview")
+async def get_service_provider_preview(session_id: str, request: Request):
+    """Generate RAG-powered service provider preview for the transition phase"""
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    
+    try:
+        # Extract business context from session
+        business_context = session.get("business_context", {})
+        industry = business_context.get("industry", "")
+        location = business_context.get("location", "")
+        business_type = business_context.get("business_type", "")
+        
+        # Generate service provider preview using RAG
+        providers = await generate_service_provider_preview(industry, location, business_type)
+        
+        return {
+            "success": True,
+            "providers": providers
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error generating service provider preview: {str(e)}"
+        }
+
+@router.get("/sessions/{session_id}/motivational-quote")
+async def get_motivational_quote(session_id: str, request: Request):
+    """Get a motivational quote for the transition phase"""
+    try:
+        # Generate or retrieve a motivational quote
+        quote = await generate_motivational_quote()
+        
+        return {
+            "success": True,
+            "quote": quote
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error generating motivational quote: {str(e)}"
     }
 
 @router.get("/sessions/{session_id}/chat/history")
@@ -531,6 +698,76 @@ async def handle_transition_decision(session_id: str, request: Request, payload:
         return {
             "success": False,
             "message": "Invalid decision. Please choose 'approve' or 'revisit'"
+        }
+
+@router.post("/sessions/{session_id}/revisit-plan-with-areas")
+async def revisit_plan_with_areas(session_id: str, request: Request, payload: dict):
+    """Handle revisit with specific modification areas"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    modification_areas = payload.get("modification_areas", [])
+    
+    if not modification_areas:
+        return {
+            "success": False,
+            "message": "No modification areas specified"
+        }
+    
+    # Store modification areas in session for guidance
+    session["modification_areas"] = modification_areas
+    session["current_phase"] = "BUSINESS_PLAN"
+    
+    # Map modification areas to specific business plan sections
+    area_to_section_mapping = {
+        "business-overview": "BUSINESS_PLAN.01-05",
+        "market-research": "BUSINESS_PLAN.06-12", 
+        "financial-projections": "BUSINESS_PLAN.13-20",
+        "operations": "BUSINESS_PLAN.21-28",
+        "marketing-strategy": "BUSINESS_PLAN.29-35",
+        "legal-compliance": "BUSINESS_PLAN.36-42"
+    }
+    
+    # Determine starting point based on modification areas
+    starting_sections = [area_to_section_mapping.get(area) for area in modification_areas if area in area_to_section_mapping]
+    
+    # Start from the earliest section that needs modification
+    if starting_sections:
+        earliest_section = min(starting_sections, key=lambda x: int(x.split('.')[1].split('-')[0]))
+        session["asked_q"] = f"BUSINESS_PLAN.{earliest_section.split('.')[1].split('-')[0].zfill(2)}"
+    else:
+        session["asked_q"] = "BUSINESS_PLAN.01"
+    
+    await patch_session(session_id, {
+        "current_phase": session["current_phase"],
+        "asked_q": session["asked_q"],
+        "modification_areas": modification_areas
+    })
+    
+    # Generate guidance message for modifications
+    modification_guidance = f"""Based on your selection, I'll guide you through modifying the following areas of your business plan:
+
+{', '.join([area.replace('-', ' ').replace('_', ' ').title() for area in modification_areas])}
+
+Let's start with the first area that needs attention. I'll provide specific guidance and questions to help you refine each section."""
+    
+    # Save guidance message to chat
+    await save_chat_message(session_id, user_id, "assistant", modification_guidance)
+    
+    return {
+        "success": True,
+        "message": "Plan modification mode activated",
+        "result": {
+            "action": "revisit_plan_with_areas",
+            "modification_areas": modification_areas,
+            "guidance": modification_guidance,
+            "progress": {
+                "phase": "BUSINESS_PLAN",
+                "answered": session.get("answered_count", 0),
+                "total": 46,
+                "percent": 0
+            }
+        }
         }
 
 @router.post("/sessions/{session_id}/start-implementation")
