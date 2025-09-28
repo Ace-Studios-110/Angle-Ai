@@ -544,15 +544,18 @@ async def start_implementation(session_id: str, request: Request):
     session["current_phase"] = "IMPLEMENTATION"
     session["asked_q"] = "IMPLEMENTATION.01"
     session["answered_count"] = 0
+    session["completed_implementation_tasks"] = []
     
     await patch_session(session_id, {
         "current_phase": session["current_phase"],
         "asked_q": session["asked_q"],
-        "answered_count": session["answered_count"]
+        "answered_count": session["answered_count"],
+        "completed_implementation_tasks": session["completed_implementation_tasks"]
     })
     
-    # Get the first implementation question
-    history = await fetch_chat_history(session_id)
+    # Get the first implementation task
+    from services.implementation_service import get_next_implementation_task
+    first_task = await get_next_implementation_task(session, [])
     
     # Generate implementation transition message and first question
     implementation_prompt = "The user has approved their roadmap and wants to start the implementation phase. Please provide a motivational transition message and present the first implementation task/question."
@@ -583,7 +586,8 @@ async def start_implementation(session_id: str, request: Request):
                 "answered": 0,
                 "total": 10,
                 "percent": 0
-            }
+            },
+            "first_task": first_task
         }
     }
 

@@ -10,6 +10,8 @@ from gotrue.errors import AuthApiError
 # Routers
 from routers.auth_router import auth_router
 from routers.angel_router import router as angel_router
+from routers.implementation_router import router as implementation_router
+from routers.roadmap_edit_router import router as roadmap_edit_router
 
 # Middlewares
 from middlewares.auth import verify_auth_token
@@ -53,6 +55,8 @@ app.add_middleware(
 # ✅ Routers
 app.include_router(auth_router, prefix="/auth")
 app.include_router(angel_router, prefix="/angel")
+app.include_router(implementation_router, prefix="/implementation")
+app.include_router(roadmap_edit_router, prefix="/roadmap")
 
 # ✅ Global Exception Handlers
 app.add_exception_handler(AuthApiError, supabase_auth_exception_handler)

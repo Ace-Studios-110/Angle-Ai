@@ -22,6 +22,8 @@ import PlanToRoadmapTransition from "../../components/PlanToRoadmapTransition";
 import ModifyModal from "../../components/ModifyModal";
 import RoadmapDisplay from "../../components/RoadmapDisplay";
 import RoadmapToImplementationTransition from "../../components/RoadmapToImplementationTransition";
+import Implementation from "../Implementation";
+import RoadmapEditModal from "../../components/RoadmapEditModal";
 
 interface ConversationPair {
   question: string;
@@ -121,6 +123,13 @@ export default function ChatPage() {
     roadmapContent: string;
     isActive: boolean;
   } | null>(null);
+  const [roadmapEditModal, setRoadmapEditModal] = useState<{
+    isOpen: boolean;
+    roadmapContent: string;
+  }>({
+    isOpen: false,
+    roadmapContent: ""
+  });
 
   // Function to detect if the current message is a verification request
   const isVerificationMessage = (message: string): boolean => {
@@ -483,9 +492,61 @@ export default function ChatPage() {
   };
 
   const handleEditRoadmap = () => {
-    // Close the roadmap modal and allow editing
-    setRoadmapState(prev => ({ ...prev, showModal: false }));
-    toast.info("Roadmap editing mode activated. You can now modify your responses.");
+    // Open the roadmap edit modal
+    if (roadmapData && roadmapData.roadmapContent) {
+      setRoadmapEditModal({
+        isOpen: true,
+        roadmapContent: roadmapData.roadmapContent
+      });
+      // Close the roadmap modal
+      setRoadmapState(prev => ({ ...prev, showModal: false }));
+    } else {
+      toast.error("No roadmap content available to edit");
+    }
+  };
+
+  const handleSaveEditedRoadmap = async (updatedContent: string) => {
+    try {
+      toast.info("Saving roadmap changes...");
+      
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/roadmap/sessions/${sessionId}/update-roadmap`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          updated_content: updatedContent
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save roadmap');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local roadmap data
+        setRoadmapData(prev => prev ? {
+          ...prev,
+          roadmapContent: updatedContent
+        } : null);
+        
+        // Close edit modal
+        setRoadmapEditModal({
+          isOpen: false,
+          roadmapContent: ""
+        });
+        
+        toast.success("Roadmap saved successfully!");
+      } else {
+        toast.error(data.message || "Failed to save roadmap");
+      }
+    } catch (error) {
+      console.error("Error saving roadmap:", error);
+      toast.error("Failed to save roadmap");
+    }
   };
 
   const handleUploadPlan = async (file: File) => {
@@ -629,6 +690,7 @@ export default function ChatPage() {
       <RoadmapDisplay
         roadmapContent={roadmapData.roadmapContent}
         onStartImplementation={handleStartImplementation}
+        onEditRoadmap={handleEditRoadmap}
         loading={loading}
       />
     );
@@ -641,6 +703,30 @@ export default function ChatPage() {
         roadmapContent={roadmapToImplementationTransition.roadmapContent}
         onStartImplementation={handleActualStartImplementation}
         loading={loading}
+      />
+    );
+  }
+
+  // Show implementation phase
+  if (progress.phase === "IMPLEMENTATION") {
+    // Create session data object for implementation
+    const sessionData = {
+      sessionId: sessionId!,
+      currentPhase: progress.phase,
+      businessName: "Your Business", // This would come from session data
+      industry: "General Business", // This would come from session data
+      location: "United States", // This would come from session data
+      businessType: "Startup" // This would come from session data
+    };
+
+    return (
+      <Implementation
+        sessionId={sessionId!}
+        sessionData={sessionData}
+        onPhaseChange={(phase) => {
+          // Handle phase changes if needed
+          console.log('Phase changed to:', phase);
+        }}
       />
     );
   }
@@ -1188,6 +1274,16 @@ export default function ChatPage() {
         onClose={() => setModifyModal(prev => ({ ...prev, isOpen: false }))}
         currentText={modifyModal.currentText}
         onSave={handleModifySave}
+        loading={loading}
+      />
+
+      {/* Roadmap Edit Modal */}
+      <RoadmapEditModal
+        isOpen={roadmapEditModal.isOpen}
+        onClose={() => setRoadmapEditModal(prev => ({ ...prev, isOpen: false }))}
+        roadmapContent={roadmapEditModal.roadmapContent}
+        sessionId={sessionId!}
+        onSave={handleSaveEditedRoadmap}
         loading={loading}
       />
     </div>
