@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Progress } from './ui/progress';
+import { Alert, AlertDescription } from './ui/alert';
 import { 
   CheckCircle, 
   Circle, 
@@ -16,14 +16,12 @@ import {
   Rocket, 
   HelpCircle,
   Navigation,
-  Menu,
   X,
   ChevronRight,
   ChevronDown,
   Target,
   TrendingUp,
   Clock,
-  Star
 } from 'lucide-react';
 
 // Types
@@ -97,18 +95,18 @@ export const ProgressIndicators: React.FC<{
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-500';
-      case 'in_progress':
-        return 'bg-blue-500';
-      case 'blocked':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-300';
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'completed':
+  //       return 'bg-green-500';
+  //     case 'in_progress':
+  //       return 'bg-blue-500';
+  //     case 'blocked':
+  //       return 'bg-red-500';
+  //     default:
+  //       return 'bg-gray-300';
+  //   }
+  // };
 
   return (
     <div className="space-y-4">
@@ -255,7 +253,7 @@ export const FlexibleNavigation: React.FC<{
   onNavigate: (item: NavigationItem) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-}> = ({ items, currentPhase, onNavigate, collapsed = false, onToggleCollapse }) => {
+}> = ({ items, onNavigate, collapsed = false, onToggleCollapse }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpanded = (itemId: string) => {
@@ -315,7 +313,7 @@ export const FlexibleNavigation: React.FC<{
           <Button
             size="sm"
             variant="ghost"
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               toggleExpanded(item.id);
             }}

@@ -1,20 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import { 
   Loader2, 
   Search, 
   BookOpen, 
   Globe, 
-  Building2, 
   TrendingUp, 
   AlertCircle, 
   CheckCircle, 
   Lightbulb,
   FileText,
-  BarChart3,
   Target,
   Shield,
-  Users
 } from 'lucide-react';
 import httpClient from '../api/httpClient';
 

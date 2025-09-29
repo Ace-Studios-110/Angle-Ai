@@ -6,24 +6,17 @@ import {
   Lightbulb, 
   AlertCircle, 
   CheckCircle,
-  Building2,
   Shield,
   DollarSign,
   Settings,
   Megaphone,
   Target,
   Rocket,
-  FileText
 } from 'lucide-react';
 import httpClient from '../api/httpClient';
+import { type Agent, type AgentsResponse, type AgentGuidanceResponse } from '../types/apiTypes';
 
-interface Agent {
-  name: string;
-  expertise: string;
-  research_sources: string[];
-  guidance: string;
-  agent_type: string;
-}
+// Agent interface is imported from types/apiTypes.ts
 
 interface SpecializedAgentsProps {
   businessContext: {
@@ -63,14 +56,16 @@ const SpecializedAgents: React.FC<SpecializedAgentsProps> = ({
         }
       });
 
-      if ((response.data as any).success) {
-        setAgents((response.data as any).agents);
+      const data = response.data as AgentsResponse;
+      if (data.success) {
+        setAgents(data.agents);
       } else {
-        setError((response.data as any).message || 'Failed to fetch agents');
+        setError(data.message || 'Failed to fetch agents');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching agents:', err);
-      setError(err.response?.data?.message || 'Failed to fetch agents');
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Failed to fetch agents');
     }
   };
 
@@ -101,8 +96,9 @@ const SpecializedAgents: React.FC<SpecializedAgentsProps> = ({
         }
       });
 
-      if ((response.data as any).success) {
-        const guidance = (response.data as any).result.guidance || 'No guidance available';
+      const data = response.data as AgentGuidanceResponse;
+      if (data.success) {
+        const guidance = data.result.guidance || 'No guidance available';
         setResponse(guidance);
         
         const agent = agents.find(a => a.agent_type === selectedAgent);
@@ -112,11 +108,12 @@ const SpecializedAgents: React.FC<SpecializedAgentsProps> = ({
         
         toast.success('Agent guidance received successfully!');
       } else {
-        setError((response.data as any).message || 'Failed to get agent guidance');
+        setError(data.message || 'Failed to get agent guidance');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error getting agent guidance:', err);
-      setError(err.response?.data?.message || 'Failed to get agent guidance');
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Failed to get agent guidance');
     } finally {
       setLoading(false);
     }
@@ -205,7 +202,7 @@ const SpecializedAgents: React.FC<SpecializedAgentsProps> = ({
                 <div className="mt-2">
                   <div className="text-xs font-medium text-gray-500 mb-1">Research Sources:</div>
                   <div className="flex flex-wrap gap-1">
-                    {agent.research_sources.slice(0, 2).map((source, index) => (
+                    {agent.research_sources.slice(0, 2).map((source: string, index: number) => (
                       <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
                         {source}
                       </span>

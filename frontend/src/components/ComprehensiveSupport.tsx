@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Loader2, 
   Building2, 
@@ -6,10 +6,6 @@ import {
   Users, 
   Target,
   AlertCircle,
-  CheckCircle,
-  Lightbulb,
-  FileText,
-  Globe,
   Settings
 } from 'lucide-react';
 import ServiceProviderTable from './ServiceProviderTable';
@@ -42,8 +38,8 @@ const ComprehensiveSupport: React.FC<ComprehensiveSupportProps> = ({
   className = ""
 }) => {
   const [activeTab, setActiveTab] = useState<string>('providers');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
 
   const tabs = [
     {

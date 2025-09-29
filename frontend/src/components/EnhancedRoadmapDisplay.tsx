@@ -22,7 +22,6 @@ const EnhancedRoadmapDisplay: React.FC<EnhancedRoadmapDisplayProps> = ({
   onStartImplementation,
   onEditRoadmap,
   loading = false,
-  sessionId,
   enhancedFeatures = {
     research_foundation: true,
     planning_champion_award: true,

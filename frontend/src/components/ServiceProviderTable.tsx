@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
 import { Loader2, MapPin, Globe, Building2, DollarSign, Phone, Mail, ExternalLink, Star, CheckCircle, AlertCircle } from 'lucide-react';
 import httpClient from '../api/httpClient';
 

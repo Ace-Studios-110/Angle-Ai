@@ -81,3 +81,28 @@ export interface IRefreshTokenResponse {
     };
   };
 }
+
+export interface Agent {
+  id: string;
+  agent_type: string;
+  name: string;
+  description: string;
+  capabilities: string[];
+  expertise_areas: string[];
+  expertise: string;
+  research_sources: string[];
+}
+
+export interface AgentsResponse {
+  success: boolean;
+  agents: Agent[];
+  message?: string;
+}
+
+export interface AgentGuidanceResponse {
+  success: boolean;
+  result: {
+    guidance: string;
+  };
+  message?: string;
+}
