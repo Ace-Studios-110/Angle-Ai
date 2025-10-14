@@ -99,7 +99,8 @@ async def post_chat(session_id: str, request: Request, payload: ChatRequestSchem
                 },
                 "web_search_status": web_search_status,
                 "immediate_response": immediate_response,
-                "transition_phase": transition_phase
+                "transition_phase": transition_phase,
+                "question_number": None  # No question number for transition messages
             }
         }
     
