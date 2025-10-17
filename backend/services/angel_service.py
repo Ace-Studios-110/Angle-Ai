@@ -1932,8 +1932,41 @@ CRITICAL:
     response_time = end_time - start_time
     print(f"⏱️ Angel reply generated in {response_time:.2f} seconds")
     
-    # Use AI to determine if Accept/Modify buttons should be shown (pass session_data)
-    button_detection = await should_show_accept_modify_buttons(reply_content, user_content, session_data)
+    # Check if user just answered the final KYC question OR if AI generated a completion message
+    if session_data and session_data.get("current_phase") == "KYC":
+        current_tag = session_data.get("asked_q", "")
+        
+        # Check if the AI's reply contains a completion message (fallback detection)
+        completion_indicators = [
+            "we've completed your entrepreneurial profile",
+            "fantastic! we've completed your entrepreneurial",
+            "completed your entrepreneurial profile",
+            "ready to dive into your business planning",
+            "moving into the exciting business planning phase"
+        ]
+        
+        if any(indicator in reply_content.lower() for indicator in completion_indicators):
+            print(f"🎯 AI generated completion message detected - triggering proper completion handler")
+            return await handle_kyc_completion(session_data, history)
+        
+        # Original detection: Check if on question 19 and user answered
+        if current_tag and current_tag.startswith("KYC."):
+            try:
+                question_num = int(current_tag.split(".")[1])
+                # Check if user just answered the final question (19)
+                if (question_num == 19 and 
+                    not current_tag.endswith("_ACK") and
+                    ("proactive" in user_content.lower() or 
+                     user_content.lower().strip() in ["yes", "y", "yeah", "yep", "sure", "ok", "okay", "absolutely", "definitely", "no", "n", "nope", "NO", "NOPE" , "proactive" , "Proactive" , "excellent" , "Excellent" , "fantastic" , "Fantastic" , "congratulations" , "Congratulations"] or
+                     "yes" in user_content.lower() or
+                     "no" in user_content.lower())):
+                    
+                    print(f"🎯 User answered final KYC question (19) - triggering completion immediately")
+                    # Trigger completion immediately after acknowledgment
+                    return await handle_kyc_completion(session_data, history)
+            except (ValueError, IndexError):
+                pass
+    
     
     # Clean up internal tags before sending to user
     # Remove [[ACCEPT_MODIFY_BUTTONS]] tag - it's only for backend detection, not display
