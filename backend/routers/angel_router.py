@@ -489,6 +489,110 @@ async def handle_command(session_id: str, request: Request, payload: dict):
             }
         }
 
+@router.post("/sessions/{session_id}/go-back")
+async def go_back_to_previous_question(session_id: str, request: Request):
+    """Handle going back to the previous question"""
+    
+    user_id = request.state.user["id"]
+    session = await get_session(session_id, user_id)
+    history = await fetch_chat_history(session_id)
+    
+    if not history or len(history) < 2:
+        return {
+            "success": False,
+            "message": "Cannot go back - no previous question available"
+        }
+    
+    # Get current phase and question
+    current_tag = session.get("asked_q", "")
+    current_phase = session.get("current_phase", "KYC")
+    answered_count = session.get("answered_count", 0)
+    
+    # Parse current question number
+    if current_tag:
+        try:
+            parts = current_tag.split(".")
+            if len(parts) == 2:
+                phase_prefix = parts[0]
+                current_q_num = int(parts[1])
+                
+                # Calculate previous question number
+                previous_q_num = current_q_num - 1
+                
+                if previous_q_num < 1:
+                    return {
+                        "success": False,
+                        "message": "Already at the first question"
+                    }
+                
+                # Create previous question tag
+                previous_tag = f"{phase_prefix}.{previous_q_num:02d}"
+                
+                # Remove last 2 chat history entries (last Q&A pair)
+                # This happens on frontend - backend just needs to update state
+                
+                # Update session to previous question
+                await patch_session(session_id, {
+                    "asked_q": previous_tag,
+                    "answered_count": max(0, answered_count - 1)
+                })
+                
+                # Re-fetch updated session
+                updated_session = await get_session(session_id, user_id)
+                
+                # Generate the previous question
+                from utils.constant import ANGEL_SYSTEM_PROMPT
+                from openai import AsyncOpenAI
+                import os
+                
+                client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                
+                question_prompt = f"""
+                The user wants to go back to the previous question.
+                Please display question {previous_tag} again.
+                Use the proper format with the [[Q:{previous_tag}]] tag.
+                """
+                
+                response = await client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": ANGEL_SYSTEM_PROMPT},
+                        {"role": "user", "content": question_prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                
+                reply = response.choices[0].message.content
+                
+                # Calculate progress
+                current_phase = updated_session.get("current_phase", "KYC")
+                answered_count = updated_session.get("answered_count", 0)
+                current_tag = updated_session.get("asked_q", "")
+                
+                phase_progress = calculate_phase_progress(current_phase, answered_count, current_tag)
+                combined_progress = calculate_combined_progress(current_phase, answered_count, current_tag)
+                
+                return {
+                    "success": True,
+                    "message": "Returned to previous question",
+                    "result": {
+                        "reply": reply,
+                        "progress": {
+                            **phase_progress,
+                            "overall_progress": combined_progress
+                        }
+                    }
+                }
+                
+        except (ValueError, IndexError) as e:
+            print(f"Error parsing question tag: {e}")
+    
+    return {
+        "success": False,
+        "message": "Unable to go back - invalid session state"
+    }
+
 @router.get("/sessions/{session_id}/artifacts/{artifact_type}")
 async def get_artifact(session_id: str, artifact_type: str, request: Request):
     """Retrieve generated artifacts like business plans and roadmaps"""
