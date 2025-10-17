@@ -17,6 +17,7 @@ from routers.provider_router import router as provider_router
 from routers.specialized_agents_router import router as specialized_agents_router
 from routers.implementation_router import router as implementation_router
 from routers.appendices_router import router as appendices_router
+from routers.upload_plan_router import router as upload_plan_router
 
 # Middlewares
 from middlewares.auth import verify_auth_token
@@ -67,6 +68,7 @@ app.include_router(roadmap_to_implementation_router, prefix="/roadmap-to-impleme
 app.include_router(provider_router, prefix="/providers")
 app.include_router(specialized_agents_router, prefix="/specialized-agents")
 app.include_router(appendices_router, prefix="/appendices")
+app.include_router(upload_plan_router, prefix="/upload-plan")
 
 # ✅ Global Exception Handlers
 app.add_exception_handler(AuthApiError, supabase_auth_exception_handler)

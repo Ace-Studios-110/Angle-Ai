@@ -4,11 +4,14 @@ from services.implementation_task_manager import ImplementationTaskManager
 from services.specialized_agents_service import agents_manager
 from services.rag_service import conduct_rag_research, validate_with_rag
 from services.service_provider_tables_service import generate_provider_table, get_task_providers
+from services.session_service import get_session
+from services.chat_service import fetch_chat_history
 from middlewares.auth import verify_auth_token
 import json
 import os
 import uuid
 from datetime import datetime
+import random
 
 router = APIRouter(
     tags=["Implementation"],
@@ -131,13 +134,65 @@ async def get_current_implementation_task(session_id: str, request: Request):
                 print(f"📋 Using cached implementation task for session: {session_id}")
                 return cached_result['data']
         
-        # Get session data (you'll need to implement this based on your session service)
+        # Fetch real session data from database
+        session = await get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Extract business context from session data (if available)
         session_data = {
-            "business_name": "Your Business",
-            "industry": "Technology",
-            "location": "San Francisco, CA",
-            "business_type": "Startup"
+            "business_name": session.get("business_name"),
+            "industry": session.get("industry"),
+            "location": session.get("location"),
+            "business_type": session.get("business_type")
         }
+        
+        # If session data doesn't have business context, extract from chat history
+        if not session_data.get("business_name") or not session_data.get("industry"):
+            print(f"📊 Session data missing business context - extracting from chat history")
+            history = await fetch_chat_history(session_id)
+            
+            # Simple extraction from chat history
+            for msg in history:
+                if msg.get('role') == 'user':
+                    content = msg.get('content', '')
+                    content_lower = content.lower()
+                    
+                    # Extract domain business name
+                    if ('.com' in content or '.net' in content or '.org' in content) and len(content) < 100:
+                        session_data["business_name"] = content.strip()
+                    
+                    # Extract location (common city names)
+                    cities = ['karachi', 'lahore', 'islamabad', 'san francisco', 'new york', 'london', 'dubai']
+                    for city in cities:
+                        if city in content_lower:
+                            session_data["location"] = city.title()
+                            break
+                    
+                    # Extract business structure
+                    structures = ['llc', 'corporation', 'partnership', 'private limited']
+                    for structure in structures:
+                        if structure in content_lower:
+                            session_data["business_type"] = structure.upper()
+                            break
+                    
+                    # Extract industry
+                    industries = {'beverage': ['beverage', 'drink', 'coke', 'soda'], 
+                                'food': ['food', 'restaurant', 'cafe'],
+                                'technology': ['tech', 'software', 'app', 'platform'],
+                                'retail': ['retail', 'store', 'shop', 'marketplace']}
+                    for industry, keywords in industries.items():
+                        if any(keyword in content_lower for keyword in keywords):
+                            session_data["industry"] = industry.title()
+                            break
+        
+        # Apply defaults if still missing
+        session_data["business_name"] = session_data.get("business_name") or "Your Business"
+        session_data["industry"] = session_data.get("industry") or "General Business"
+        session_data["location"] = session_data.get("location") or "United States"
+        session_data["business_type"] = session_data.get("business_type") or "Startup"
+        
+        print(f"📊 Implementation task - final business context: {session_data}")
         
         # Get completed tasks (you'll need to implement this based on your session service)
         completed_tasks = []
