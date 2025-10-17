@@ -1671,24 +1671,14 @@ Do NOT include question numbers, progress percentages, or step counts in your re
             scrapping_result = await handle_scrapping_command("", notes, history, session_data)
             # Add show_accept_modify for scrapping responses
             scrapping_result["show_accept_modify"] = True
-            # If web search is needed, let the main function handle it
-            if scrapping_result.get("web_search_status", {}).get("is_searching"):
-                needs_web_search = True
-                web_search_query = scrapping_result["web_search_status"]["query"]
-                reply_content = scrapping_result["reply"]
-            else:
-                return scrapping_result
+            # Always return the scrapping result
+            return scrapping_result
         elif user_content.lower() in ["scrapping", "scraping"]:
             scrapping_result = await handle_scrapping_command("", "", history, session_data)
             # Add show_accept_modify for scrapping responses
             scrapping_result["show_accept_modify"] = True
-            # If web search is needed, let the main function handle it
-            if scrapping_result.get("web_search_status", {}).get("is_searching"):
-                needs_web_search = True
-                web_search_query = scrapping_result["web_search_status"]["query"]
-                reply_content = scrapping_result["reply"]
-            else:
-                return scrapping_result
+            # Always return the scrapping result
+            return scrapping_result
         elif user_content.lower() == "support":
             reply_content = await handle_support_command("", history, session_data)
         elif user_content.lower() == "draft more":
